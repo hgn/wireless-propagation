@@ -1,0 +1,113 @@
+\documentclass[9pt]{article}
+ 
+\usepackage{times}
+\usepackage{transparency}
+\usepackage[german]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[latin1]{inputenc}
+
+\screensize{8.5truein}{11truein}
+\begin{document}
+
+
+\title{Radio Propagation Models}
+
+\setbackground{background.png}
+\subtitle{}
+
+\name{Hagen Paul Pfeifer}
+\footerline{Radio Propagation Models}
+\email{hagen.pfeifer@protocollabs.de}
+\company{}
+\date{\today}
+\maketitle
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+\slidetitle{Disclaimer}{Disclaimer}
+\bi
+	\item The initial purpose of this work was to verify and
+	      check the implementation of the \textit{Nakagami Fading Model}
+		  in ns-3. In the half of the work I realized that the generated
+		  material is a good starting point for path loss in general.
+		  Especially to develop intuition how path loss influence the Wireless
+		  simulation at the whole. How model knobs influences the
+		  characteristic of the channel, etc.
+
+	\item The complete work is public available and can be used for further
+	      investigation:\newline
+	      \verb+git clone git.jauu.net/rpm-analysis.git+
+
+	\item Suggestions, enhancements or critic is highly welcome!
+\ei
+\end{slide}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+\slidetitle{Theoretical Background}{Theoretical Background}
+\bi
+	\item A Wireless channel is unsteady and lossy
+
+	\item Wireless network simulators requires a model of this characteristic
+
+	\item Three parameter are most relevant:
+
+	\be
+		\item Attenuation
+		\item Slow Fading (shadowing)
+		\item Fast Fading (multipath scattering)
+	\ee
+\ei
+\end{slide}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+\slidetitle{Friis}{Friis}
+\bi
+	\item Formular:\\\vspace{1cm}
+	\begin{large}
+	\begin{math}
+	\frac{P_r}{P_t} = G_t G_r (\frac{\lambda}{4 \pi R} )^2
+	\end{math}\\\vspace{1cm}
+	\end{large}
+	\begin{small}
+	$P_r$ Reveiving power (dBm)\\
+	$P_t$ Transmitter power (dBm)\\
+	$G_t$ Antenna Gain Transmitter (dBi/dBd)\\
+	$G_r$ Antenna Gain Receiver (dBi/dBd)\\
+	$\lambda$ Wavelength (meter, \dots)\\
+	$R$ Distance between the nodes (meter, \dots)\\
+	\end{small}
+\ei
+\end{slide}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+		\begin{picture}(0,0)
+		\put(100,-400){\includegraphics[scale=0.7]{images/friis.pdf}}
+		\end{picture}
+\slidetitle{Friis}{Friis}
+\end{slide}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+		\begin{picture}(0,0)
+		\put(100,-400){\includegraphics[scale=0.7]{images/trg_vanilla.pdf}}
+		\end{picture}
+\slidetitle{Two Ray Ground (vanilla)}{Two Ray Ground (vanilla)}
+\end{slide}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+		\begin{picture}(0,0)
+		\put(100,-400){\includegraphics[scale=0.7]{images/trg.pdf}}
+		\end{picture}
+\slidetitle{Two Ray Ground}{Two Ray Ground}
+\end{slide}
+
+
+
+\end{document}
+
+% vim600: fdm=marker tw=130 sw=4 ts=4 sts=4 ff=unix noet:
