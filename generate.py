@@ -21,7 +21,7 @@ def friis_gnuplot_template():
     set key spacing 1.2
     set grid xtics ytics mytics
 
-    set title "Friis Path Loss Behaviour"
+    set title "Friis Path Loss Model"
     set xlabel "Node Distance [meter]"
     set ylabel "RX Power [dbm]"
 
@@ -77,7 +77,7 @@ def trg_gnuplot_template():
     set key spacing 1.2
     set grid xtics ytics mytics
 
-    set title "Two Ray Ground Path Loss Behaviour"
+    set title "Two Ray Ground Path Loss Model"
     set xlabel "Node Distance [meter]"
     set ylabel "RX Power [dbm]"
 
@@ -131,7 +131,7 @@ def trg_vanilla_gnuplot_template():
     set key spacing 1.2
     set grid xtics ytics mytics
 
-    set title "Two Ray Ground Path Loss Behaviour"
+    set title "Two Ray Ground Path Loss Model"
     set xlabel "Node Distance [meter]"
     set ylabel "RX Power [dbm]"
 
@@ -175,6 +175,70 @@ def trg_vanilla():
     p = Popen("mv " + prefix + ".pdf latex/images", shell=True)
     sts = os.waitpid(p.pid, 0)
 
+
+
+##########################################
+##########################################
+##########################################
+def shadowing_gnuplot_template():
+    return """
+    set term postscript eps enhanced color "Times" 30
+    set output "shadowing.eps"
+    set size 2
+
+    set key spacing 1.2
+    set grid xtics ytics mytics
+
+    set title "Shadowing Path Loss Model"
+    set xlabel "Node Distance [meter]"
+    set ylabel "RX Power [dbm]"
+
+    set yrange[-150:20]
+
+    set style line 1 linetype 1 linecolor rgb "#3e6694" lw 4
+
+    plot "shadowing.dat" using 1:2 title "Shadowing" with lines ls 1
+    !epstopdf --outfile=shadowing.pdf shadowing.eps
+    !rm -rf shadowing.eps
+    """
+
+
+def shadowing():
+
+    prefix    = "shadowing"
+    algorithm = "shadowing"
+
+    # first of all open gnuplot template file
+    f = open(prefix + ".gpi", 'w')
+    f.write(shadowing_gnuplot_template())
+    f.close()
+
+    # open  data file
+    fdat = open(prefix + ".dat", 'w')
+
+    for i in range(1, 500):
+        f = float(i)
+        output = Popen([p_path,
+            "--algorithm", algorithm,
+            "--distance", "%f" % f],
+            stdout=PIPE).communicate()[0]
+        fdat.write("%f %s\n" % (f, output.rstrip('\n')))
+
+    fdat.close()
+
+    # execute gnuplot
+    p = Popen("gnuplot" + " " + prefix + ".gpi", shell=True)
+    sts = os.waitpid(p.pid, 0)
+
+    # move image in tex directory
+    p = Popen("mv " + prefix + ".pdf latex/images", shell=True)
+    sts = os.waitpid(p.pid, 0)
+
+
+
+##########################################
+##########################################
 friis()
 trg()
 trg_vanilla()
+shadowing()
