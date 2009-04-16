@@ -234,6 +234,65 @@ def shadowing():
     p = Popen("mv " + prefix + ".pdf latex/images", shell=True)
     sts = os.waitpid(p.pid, 0)
 
+##########################################
+##########################################
+##########################################
+def nakagami_gnuplot_template():
+    return """
+    set term postscript eps enhanced color "Times" 30
+    set output "nakagami.eps"
+    set size 2
+
+    set key spacing 1.2
+    set grid xtics ytics mytics
+
+    set title "Nakagami Path Loss Model"
+    set xlabel "Node Distance [meter]"
+    set ylabel "RX Power [dbm]"
+
+    set yrange[-150:20]
+
+    set style line 1 linetype 1 linecolor rgb "#3e6694" lw 4
+
+    plot "nakagami.dat" using 1:2 title "Nakagami" with lines ls 1
+    !epstopdf --outfile=nakagami.pdf nakagami.eps
+    !rm -rf nakagami.eps
+    """
+
+
+def nakagami():
+
+    prefix    = "nakagami"
+    algorithm = "nakagami"
+
+    # first of all open gnuplot template file
+    f = open(prefix + ".gpi", 'w')
+    f.write(nakagami_gnuplot_template())
+    f.close()
+
+    # open  data file
+    fdat = open(prefix + ".dat", 'w')
+
+    for i in range(1, 500):
+        f = float(i)
+        output = Popen([p_path,
+            "--algorithm", algorithm,
+            "--distance", "%f" % f],
+            stdout=PIPE).communicate()[0]
+        fdat.write("%f %s\n" % (f, output.rstrip('\n')))
+
+    fdat.close()
+
+    # execute gnuplot
+    p = Popen("gnuplot" + " " + prefix + ".gpi", shell=True)
+    sts = os.waitpid(p.pid, 0)
+
+    # move image in tex directory
+    p = Popen("mv " + prefix + ".pdf latex/images", shell=True)
+    sts = os.waitpid(p.pid, 0)
+
+
+
 
 
 ##########################################
@@ -242,3 +301,4 @@ friis()
 trg()
 trg_vanilla()
 shadowing()
+nakagami()

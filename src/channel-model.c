@@ -14,6 +14,7 @@
 
 #define	SEED_DEVICE "/dev/urandom"
 
+/* friis and two ray ground values */
 #define	DEFAULT_FREQUENCY (2.4 * 1000 * 1000 * 1000) /* 2.4 GHz */
 #define	DEFAULT_SYSTEM_LOSS 1.0
 #define	DEFAULT_TX_POWER 0.1 /* Watt */
@@ -22,10 +23,25 @@
 #define	DEFAULT_RX_ANTENNA_HEIGHT 1.5 /* meter */
 #define	DEFAULT_TX_ANTENNA_HEIGHT 1.5 /* meter */
 
-/* shadowing model */
+/* shadowing values */
 #define	DEFAULT_SHADOWING_PATHLOSS_EXP 2.0
 #define	DEFAULT_SHADOWING_STD_DB 4.0
 #define	DEFAULT_SHADOWING_DISTANCE 1.0
+
+/* nakagami values */
+#define	DEFAULT_NAKAGAMI_GAMMA_0 1.9
+#define	DEFAULT_NAKAGAMI_GAMMA_1 3.8
+#define	DEFAULT_NAKAGAMI_GAMMA_2 3.8
+#define	DEFAULT_NAKAGAMI_D0_GAMMA 200
+#define	DEFAULT_NAKAGAMI_D1_GAMMA 500
+
+#define	DEFAULT_NAKAGAMI_M0 1.50
+#define	DEFAULT_NAKAGAMI_M1 0.75
+#define	DEFAULT_NAKAGAMI_M2 0.75
+
+#define	DEFAULT_NAKAGAMI_D0_M  80
+#define	DEFAULT_NAKAGAMI_D1_M 200
+#define	DEFAULT_NAKAGAMI_USE_DIST 0 /* false */
 
 #define SPEED_OF_LIGHT  299792458.0
 
@@ -34,6 +50,7 @@ enum algo {
 	TWO_RAY_GROUND,
 	TWO_RAY_GROUND_VANILLA,
 	SHADOWING,
+	NAKAGAMI,
 };
 
 struct opts {
@@ -46,9 +63,22 @@ struct opts {
 	double rx_antenna_gain;
 	double rx_antenna_height;
 	double tx_antenna_height;
+
 	double shadowing_pathloss_exp;
 	double shadowing_std_db;
 	double shadowing_distance;
+
+	double nakagami_gamma_0;
+	double nakagami_gamma_1;
+	double nakagami_gamma_2;
+	double nakagami_d0_gamma;
+	double nakagami_d1_gamma;
+	double nakagami_m0;
+	double nakagami_m1;
+	double nakagami_m2;
+	double nakagami_d0_m;
+	double nakagami_d1_m;
+	double nakagami_use_dist;
 };
 
 struct c_env {
@@ -141,6 +171,19 @@ static void setup_defaults(struct opts *opts)
 	opts->shadowing_std_db       = DEFAULT_SHADOWING_STD_DB;
 	opts->shadowing_distance     = DEFAULT_SHADOWING_DISTANCE;
 
+	/* nakagami setup */
+	opts->nakagami_gamma_0 = DEFAULT_NAKAGAMI_GAMMA_0;
+	opts->nakagami_gamma_1 = DEFAULT_NAKAGAMI_GAMMA_1;
+	opts->nakagami_gamma_2 = DEFAULT_NAKAGAMI_GAMMA_2;
+	opts->nakagami_d0_gamma = DEFAULT_NAKAGAMI_D0_GAMMA;
+	opts->nakagami_d1_gamma = DEFAULT_NAKAGAMI_D1_GAMMA;
+	opts->nakagami_m0 = DEFAULT_NAKAGAMI_M0;
+	opts->nakagami_m1 = DEFAULT_NAKAGAMI_M1;
+	opts->nakagami_m2 = DEFAULT_NAKAGAMI_M2;
+	opts->nakagami_d0_m = DEFAULT_NAKAGAMI_D0_M;
+	opts->nakagami_d1_m = DEFAULT_NAKAGAMI_D1_M;
+	opts->nakagami_use_dist = DEFAULT_NAKAGAMI_USE_DIST;
+
 	opts->node_distance = -1.0;
 }
 
@@ -194,6 +237,8 @@ static struct opts* parse_opts(int ac, char **av)
 					opts->algo = TWO_RAY_GROUND_VANILLA;
 				} else if (!strcasecmp(optarg, "shadowing")) {
 					opts->algo = SHADOWING;
+				} else if (!strcasecmp(optarg, "nakagami")) {
+					opts->algo = NAKAGAMI;
 				} else {
 					fprintf(stderr, "Algorithm \"%s\" not supported!\n",
 							av[1]);
@@ -263,7 +308,7 @@ static struct opts* parse_opts(int ac, char **av)
 	return opts;
 }
 
-static void calc_friis(const struct opts *opts)
+static double calc_friis(const struct opts *opts)
 {
 	double dbm;
 	double wave_length = calc_wave_length(opts->frequency);
@@ -277,10 +322,10 @@ static void calc_friis(const struct opts *opts)
 
 	dbm = watt_to_dbm(rx_power);
 
-	fprintf(stdout, "%lf\n", dbm);
+	return dbm;
 }
 
-static void calc_two_ray_ground(const struct opts *opts)
+static double calc_two_ray_ground(const struct opts *opts)
 {
 	double dbm, rx_power;
 	double wave_length = calc_wave_length(opts->frequency);
@@ -311,10 +356,10 @@ static void calc_two_ray_ground(const struct opts *opts)
 
 	dbm = watt_to_dbm(rx_power);
 
-	fprintf(stdout, "%lf\n", dbm);
+	return dbm;
 }
 
-static void calc_two_ray_ground_vanilla(const struct opts *opts)
+static double calc_two_ray_ground_vanilla(const struct opts *opts)
 {
 	double dbm, rx_power;
 
@@ -328,10 +373,10 @@ static void calc_two_ray_ground_vanilla(const struct opts *opts)
 
 	dbm = watt_to_dbm(rx_power);
 
-	fprintf(stdout, "%lf\n", dbm);
+	return dbm;
 }
 
-static void calc_shadowing(const struct opts *opts, struct c_env *c_env)
+static double calc_shadowing(const struct opts *opts, struct c_env *c_env)
 {
 	double dbm, avg_db, pr, power_loss_db;
 	double wave_length = calc_wave_length(opts->frequency);
@@ -356,8 +401,56 @@ static void calc_shadowing(const struct opts *opts, struct c_env *c_env)
 
 	dbm = watt_to_dbm(pr);
 
-	fprintf(stdout, "%lf\n", dbm);
+	return dbm;
 }
+
+static double calc_nakagami(struct opts *opts, struct c_env *c_env)
+{
+	double path_loss_dB = 0.0;
+	const double d_ref = 1.0;
+	double rx_power, pr_0, pr_1;
+
+	pr_0 = calc_friis(opts);
+
+
+	if (opts->node_distance > 0 &&
+		opts->node_distance <= opts->nakagami_d0_gamma) {
+		path_loss_dB = 10 * opts->nakagami_gamma_0 * log10(opts->node_distance/d_ref);
+	}
+	if (opts->node_distance > opts->nakagami_d0_gamma &&
+		opts->node_distance <= opts->nakagami_gamma_1) {
+		path_loss_dB = 10 * opts->nakagami_gamma_0 * log10(opts->nakagami_d0_gamma / d_ref) +
+			           10 * opts->nakagami_gamma_1 * log10(opts->node_distance / opts->nakagami_d0_gamma);
+	}
+	if (opts->node_distance > opts->nakagami_gamma_1) {
+		path_loss_dB = 10 * opts->nakagami_gamma_0 * log10(opts->nakagami_d0_gamma / d_ref) +
+			           10 * opts->nakagami_gamma_1 * log10(opts->nakagami_gamma_1 / opts->nakagami_d0_gamma) +
+					   10 * opts->nakagami_gamma_2 * log10(opts->node_distance / opts->nakagami_d1_gamma);
+	}
+
+
+    /* calculate the receiving power at distance dist */
+	pr_1 = pr_0; // * pow(10.0, -path_loss_dB / 10.0);
+
+	if (!opts->nakagami_use_dist) {
+		rx_power = pr_1;
+	} else {
+		double m;
+
+		if ( opts->node_distance <= opts->nakagami_d0_m)
+			m = opts->nakagami_m0;
+		else if ( opts->node_distance <= opts->nakagami_d1_m)
+			m = opts->nakagami_m1;
+		else
+			m = opts->nakagami_m2;
+
+		rx_power = gsl_ran_gamma(c_env->rng, m, pr_1 / m);
+	}
+
+	return rx_power;
+}
+
+
 
 static struct c_env* init_env(void)
 {
@@ -409,6 +502,7 @@ int main(int ac, char **av)
 {
 	struct opts *opts;
 	struct c_env *c_env;
+	double rx_power_dbm;
 
 	opts = parse_opts(ac, av);
 	c_env = init_env();
@@ -416,16 +510,19 @@ int main(int ac, char **av)
 
 	switch (opts->algo) {
 		case FRIIS:
-			calc_friis(opts);
+			rx_power_dbm = calc_friis(opts);
 			break;
 		case TWO_RAY_GROUND:
-			calc_two_ray_ground(opts);
+			rx_power_dbm = calc_two_ray_ground(opts);
 			break;
 		case TWO_RAY_GROUND_VANILLA:
-			calc_two_ray_ground_vanilla(opts);
+			rx_power_dbm = calc_two_ray_ground_vanilla(opts);
 			break;
 		case SHADOWING:
-			calc_shadowing(opts, c_env);
+			rx_power_dbm = calc_shadowing(opts, c_env);
+			break;
+		case NAKAGAMI:
+			rx_power_dbm = calc_nakagami(opts, c_env);
 			break;
 		default:
 			fprintf(stderr, "Programmed error in switch/case statement: %s:%d\n",
@@ -433,8 +530,10 @@ int main(int ac, char **av)
 			exit(EXIT_FAILURE);
 	}
 
-	finit_env(c_env);
 
+	fprintf(stdout, "%lf\n", rx_power_dbm);
+
+	finit_env(c_env);
 	free(opts);
 
 	return 0;
