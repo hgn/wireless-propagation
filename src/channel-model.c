@@ -45,6 +45,12 @@
 
 #define SPEED_OF_LIGHT  299792458.0
 
+/* 1 meter iteration steps from 1 meter node distance till 500 distance */
+#define	DEFAULT_START 1
+#define	DEFAULT_END 500.0
+#define	DEFAULT_DELTA 1.0
+
+
 enum algo {
 	FRIIS = 1,
 	TWO_RAY_GROUND,
@@ -54,7 +60,10 @@ enum algo {
 };
 
 struct opts {
-	double node_distance;
+	double start;
+	double end;
+	double delta;
+
 	double frequency;
 	double system_loss;
 	double tx_power;
@@ -83,20 +92,20 @@ struct opts {
 struct c_env {
 	gsl_rng *rng;
 	enum algo algo;
-	double (*func)(const struct opts *, struct c_env *);
+	double (*func)(const struct opts *, struct c_env *, const double);
 };
 
 /* al cheapo forward declarations */
-static double calc_shadowing(const struct opts *, struct c_env *);
-static double calc_nakagami(const struct opts *, struct c_env *);
-static double calc_two_ray_ground_vanilla(const struct opts *, struct c_env *);
-static double calc_two_ray_ground(const struct opts *, struct c_env *);
-static double calc_friis(const struct opts *, struct c_env *);
+static double calc_shadowing(const struct opts *, struct c_env *, const double);
+static double calc_nakagami(const struct opts *, struct c_env *, const double);
+static double calc_two_ray_ground_vanilla(const struct opts *, struct c_env *, const double);
+static double calc_two_ray_ground(const struct opts *, struct c_env *, const double);
+static double calc_friis(const struct opts *, struct c_env *, const double);
 
 struct algorithms {
 	const char *name;
 	enum algo algo;
-	double (*func)(const struct opts *, struct c_env *);
+	double (*func)(const struct opts *, struct c_env *, const double);
 } algorithms[] = {
 	{ "shadowing", SHADOWING,  calc_shadowing },
 	{ "nakagami", NAKAGAMI, calc_nakagami },
@@ -232,7 +241,9 @@ setup_defaults(struct opts *opts)
 	opts->nakagami_d1_m = DEFAULT_NAKAGAMI_D1_M;
 	opts->nakagami_use_dist = DEFAULT_NAKAGAMI_USE_DIST;
 
-	opts->node_distance = -1.0;
+	opts->start =  DEFAULT_START;
+	opts->end =  DEFAULT_END;
+	opts->delta = DEFAULT_DELTA;
 }
 
 
@@ -272,8 +283,13 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 		int option_index = 0;
 		static struct option long_options[] = {
 
-			/* standard values */
 			{"algorithm",       1, 0, 'a'},
+			{"start",           1, 0, 's'},
+			{"end",             1, 0, 'e'},
+			{"delta",           1, 0, 'd'},
+
+			/* standard values */
+
 			{"distance",        1, 0, 'd'},
 			{"frequency",       1, 0, 'f'},
 			{"systemloss",      1, 0, 'l'},
@@ -291,7 +307,7 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 			{0, 0, 0, 0}
 		};
 
-		c = getopt_long(ac, av, "a:d:f:l:p:r:t:u:i:g:h:j:",
+		c = getopt_long(ac, av, "a:s:e:d:f:l:p:r:t:u:i:g:h:j:",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -307,8 +323,16 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 			}
 			break;
 
+		case 's':
+			opts->start = strtod(optarg, NULL);
+			break;
+
+		case 'e':
+			opts->end = strtod(optarg, NULL);
+			break;
+
 		case 'd':
-			opts->node_distance = strtod(optarg, NULL);
+			opts->delta = strtod(optarg, NULL);
 			break;
 
 		case 'f':
@@ -365,15 +389,18 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 		exit(EXIT_FAILURE);
 	}
 
-	if (opts->node_distance < 0)
-		die(EXIT_FAILURE, "No valid distance given (> 0m)");
+	if (opts->start < 0.0)
+		die(EXIT_FAILURE, "No valid distance given (must > 0m)");
+
+	if (opts->delta < 0.0)
+		die(EXIT_FAILURE, "No valid delta given (must > 0)");
 
 	return opts;
 }
 
 
 static double
-calc_friis(const struct opts *opts, struct c_env *c_env)
+calc_friis(const struct opts *opts, struct c_env *c_env, const double node_distance)
 {
 	double dbm;
 	double wave_length;
@@ -387,7 +414,7 @@ calc_friis(const struct opts *opts, struct c_env *c_env)
 							opts->rx_antenna_gain,
 							wave_length,
 							opts->system_loss,
-							opts->node_distance);
+							node_distance);
 
 	dbm = watt_to_dbm(rx_power);
 
@@ -396,7 +423,7 @@ calc_friis(const struct opts *opts, struct c_env *c_env)
 
 
 static double
-calc_two_ray_ground(const struct opts *opts, struct c_env *c_env)
+calc_two_ray_ground(const struct opts *opts, struct c_env *c_env, const double node_distance)
 {
 	double dbm, rx_power;
 	double wave_length;
@@ -410,14 +437,14 @@ calc_two_ray_ground(const struct opts *opts, struct c_env *c_env)
 											  wave_length);
 
 
-	if (opts->node_distance < x_border) {
+	if (node_distance < x_border) {
 		/* friis */
 		rx_power = friis(opts->tx_power,
 							opts->tx_antenna_gain,
 							opts->rx_antenna_gain,
 							wave_length,
 							opts->system_loss,
-							opts->node_distance);
+							node_distance);
 	} else {
 		/* two ray ground */
 		rx_power = two_ray_ground(opts->tx_power,
@@ -426,7 +453,7 @@ calc_two_ray_ground(const struct opts *opts, struct c_env *c_env)
 							opts->tx_antenna_height,
 							opts->rx_antenna_height,
 							opts->system_loss,
-							opts->node_distance);
+							node_distance);
 	}
 
 	dbm = watt_to_dbm(rx_power);
@@ -435,11 +462,11 @@ calc_two_ray_ground(const struct opts *opts, struct c_env *c_env)
 }
 
 static double
-calc_two_ray_ground_vanilla(const struct opts *opts, struct c_env *c_env)
+calc_two_ray_ground_vanilla(const struct opts *opts, struct c_env *c_env, const double node_distance)
 {
 	double dbm, rx_power;
 
-	(void)c_env; /* not required here */
+	(void)c_env; /* not required for two ray ground */
 
 	rx_power = two_ray_ground(opts->tx_power,
 						opts->tx_antenna_gain,
@@ -447,7 +474,7 @@ calc_two_ray_ground_vanilla(const struct opts *opts, struct c_env *c_env)
 						opts->tx_antenna_height,
 						opts->rx_antenna_height,
 						opts->system_loss,
-						opts->node_distance);
+						node_distance);
 
 	dbm = watt_to_dbm(rx_power);
 
@@ -456,7 +483,7 @@ calc_two_ray_ground_vanilla(const struct opts *opts, struct c_env *c_env)
 
 
 static double
-calc_shadowing(const struct opts *opts, struct c_env *c_env)
+calc_shadowing(const struct opts *opts, struct c_env *c_env, const double node_distance)
 {
 	double dbm, avg_db, pr, power_loss_db;
 	double wave_length = calc_wave_length(opts->frequency);
@@ -466,11 +493,11 @@ calc_shadowing(const struct opts *opts, struct c_env *c_env)
 							opts->rx_antenna_gain,
 							wave_length,
 							opts->system_loss,
-							opts->node_distance);
+							node_distance);
 
-	if (opts->node_distance > opts->shadowing_distance) {
+	if (node_distance > opts->shadowing_distance) {
 		avg_db = -10.0 * opts->shadowing_pathloss_exp *
-			log10(opts->node_distance/opts->shadowing_distance);
+			log10(node_distance/opts->shadowing_distance);
 	} else {
 		avg_db = 0.0;
 	}
@@ -486,28 +513,28 @@ calc_shadowing(const struct opts *opts, struct c_env *c_env)
 
 
 static double
-calc_nakagami(const struct opts *opts, struct c_env *c_env)
+calc_nakagami(const struct opts *opts, struct c_env *c_env, const double node_distance)
 {
 	double path_loss_dB = 0.0;
 	const double d_ref = 1.0;
 	double rx_power, pr_0, pr_1;
 
-	pr_0 = calc_friis(opts, c_env);
+	pr_0 = calc_friis(opts, c_env, node_distance);
 
 
-	if (opts->node_distance > 0 &&
-		opts->node_distance <= opts->nakagami_d0_gamma) {
-		path_loss_dB = 10 * opts->nakagami_gamma_0 * log10(opts->node_distance/d_ref);
+	if (node_distance > 0 &&
+		node_distance <= opts->nakagami_d0_gamma) {
+		path_loss_dB = 10 * opts->nakagami_gamma_0 * log10(node_distance/d_ref);
 	}
-	if (opts->node_distance > opts->nakagami_d0_gamma &&
-		opts->node_distance <= opts->nakagami_gamma_1) {
+	if (node_distance > opts->nakagami_d0_gamma &&
+		node_distance <= opts->nakagami_gamma_1) {
 		path_loss_dB = 10 * opts->nakagami_gamma_0 * log10(opts->nakagami_d0_gamma / d_ref) +
-			           10 * opts->nakagami_gamma_1 * log10(opts->node_distance / opts->nakagami_d0_gamma);
+			           10 * opts->nakagami_gamma_1 * log10(node_distance / opts->nakagami_d0_gamma);
 	}
-	if (opts->node_distance > opts->nakagami_gamma_1) {
+	if (node_distance > opts->nakagami_gamma_1) {
 		path_loss_dB = 10 * opts->nakagami_gamma_0 * log10(opts->nakagami_d0_gamma / d_ref) +
 			           10 * opts->nakagami_gamma_1 * log10(opts->nakagami_gamma_1 / opts->nakagami_d0_gamma) +
-					   10 * opts->nakagami_gamma_2 * log10(opts->node_distance / opts->nakagami_d1_gamma);
+					   10 * opts->nakagami_gamma_2 * log10(node_distance / opts->nakagami_d1_gamma);
 	}
 
 
@@ -519,9 +546,9 @@ calc_nakagami(const struct opts *opts, struct c_env *c_env)
 	} else {
 		double m;
 
-		if ( opts->node_distance <= opts->nakagami_d0_m)
+		if (node_distance <= opts->nakagami_d0_m)
 			m = opts->nakagami_m0;
-		else if ( opts->node_distance <= opts->nakagami_d1_m)
+		else if (node_distance <= opts->nakagami_d1_m)
 			m = opts->nakagami_m1;
 		else
 			m = opts->nakagami_m2;
@@ -589,14 +616,23 @@ main(int ac, char **av)
 	struct opts *opts;
 	struct c_env *c_env;
 	double rx_power_dbm;
+	double node_distance;
 
 	c_env = init_env();
 	opts = parse_opts(ac, av, c_env);
 
-	/* func point to the particular function */
-	rx_power_dbm = c_env->func(opts, c_env);
+	for (node_distance = opts->start;
+		 node_distance <= opts->end;
+		 node_distance += opts->delta) {
 
-	fprintf(stdout, "%lf\n", rx_power_dbm);
+		/* func point to the particular function */
+		rx_power_dbm = c_env->func(opts, c_env, node_distance);
+
+		fprintf(stdout, "%lf %lf\n", node_distance, rx_power_dbm);
+
+
+
+	}
 
 	finit_env(c_env);
 	free(opts);
