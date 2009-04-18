@@ -41,7 +41,7 @@
 
 #define	DEFAULT_NAKAGAMI_D0_M  80
 #define	DEFAULT_NAKAGAMI_D1_M 200
-#define	DEFAULT_NAKAGAMI_USE_DIST 0 /* false */
+#define	DEFAULT_NAKAGAMI_USE_DIST 1 /* false */
 
 #define SPEED_OF_LIGHT  299792458.0
 
@@ -86,23 +86,50 @@ struct c_env {
 };
 
 
+/* al cheapo forward declarations */
+static double calc_shadowing(const struct opts *, struct c_env *);
+static double calc_nakagami(const struct opts *, struct c_env *);
+static double calc_two_ray_ground_vanilla(const struct opts *, struct c_env *);
+static double calc_two_ray_ground(const struct opts *, struct c_env *);
+static double calc_friis(const struct opts *, struct c_env *);
+
+struct algorithms {
+	const char *name;
+	double (*func)(const struct opts *, struct c_env *);
+} algorithms[] = {
+	{ "shadowing", calc_shadowing },
+	{ "nakagami", calc_nakagami },
+	{ "tworaygroundvanilla", calc_two_ray_ground_vanilla },
+	{ "tworayground", calc_two_ray_ground },
+	{ "friis", calc_friis },
+	{ NULL, 0 }
+};
+
+
 /* calculate lambda */
-static double calc_wave_length(double frequency)
+static double
+calc_wave_length(double frequency)
 {
 	return SPEED_OF_LIGHT / frequency;
 }
 
-static double dbm_to_watt(double dbm)
+
+static double
+dbm_to_watt(double dbm)
 {
 	return (pow(10.0, dbm / 10.0)) / 1000.0;
 }
 
-static double watt_to_dbm(double watt)
+
+static double
+watt_to_dbm(double watt)
 {
 	return log10(watt * 1000.0) * 10.0;
 }
 
-double friis(double pt, double gt, double gr, double lambda, double l, double d)
+
+static double
+friis(double pt, double gt, double gr, double lambda, double l, double d)
 {
         /*
          * Friis free space equation:
@@ -115,7 +142,9 @@ double friis(double pt, double gt, double gr, double lambda, double l, double d)
   return (pt * gt * gr * (m * m)) / l;
 }
 
-double calc_crossover_distance(double height_tx, double height_rx, double lambda)
+
+static double
+calc_crossover_distance(double height_tx, double height_rx, double lambda)
 {
 	/*
 	         4 * PI * hr * ht
@@ -129,33 +158,51 @@ double calc_crossover_distance(double height_tx, double height_rx, double lambda
 	return (4 * M_PI * height_tx * height_rx) / lambda;
 }
 
-double two_ray_ground(double pt, double gt, double gr, double ht, double hr, double l, double d)
+
+static double
+two_ray_ground(double pt, double gt, double gr,
+		       double ht, double hr, double l, double d)
 {
         /*
-         *  Two-ray ground reflection model.
-         *
          *	     Pt * Gt * Gr * (ht^2 * hr^2)
          *  Pr = ----------------------------
          *           d^4 * L
          *
-         * The original equation in Rappaport's book assumes L = 1.
-         * To be consistant with the free space equation, L is added here.
+         * The original equation in Rappaport's
+		 * book assumes L = 1. To be consistant
+		 * with the free space equation, L is
+		 * added here.
          */
   return pt * gt * gr * (hr * hr * ht * ht) / (d * d * d * d * l);
 }
 
-static void die(int exit_code, char *msg)
+
+static void
+die(int exit_code, char *msg)
 {
 	fprintf(stderr, "%s\n", msg);
 	exit(exit_code);
 }
 
-static void print_usage(void)
+
+static void
+print_usage(void)
 {
+	const char *name;
+	int i = 0;
+
 	fputs("./channel-mode <algo> <distance>\n", stderr);
+	fputs("\tSupported algorithm are:\n", stderr);
+
+	name = algorithms[i++].name;
+	for (; name != NULL; name = algorithms[i++].name) {
+		fprintf(stderr,"\t\to %s\n", name);
+	}
 }
 
-static void setup_defaults(struct opts *opts)
+
+static void
+setup_defaults(struct opts *opts)
 {
 	/* standard values */
 	opts->frequency         = DEFAULT_FREQUENCY;
@@ -187,7 +234,9 @@ static void setup_defaults(struct opts *opts)
 	opts->node_distance = -1.0;
 }
 
-static struct opts* parse_opts(int ac, char **av)
+
+static struct opts*
+parse_opts(int ac, char **av)
 {
 	int c;
 	struct opts *opts;
@@ -228,79 +277,82 @@ static struct opts* parse_opts(int ac, char **av)
 			break;
 
 		switch (c) {
-			case 'a':
-				if (!strcasecmp(optarg, "friis")) {
-					opts->algo = FRIIS;
-				} else if (!strcasecmp(optarg, "tworayground")) {
-					opts->algo = TWO_RAY_GROUND;
-				} else if (!strcasecmp(optarg, "tworaygroundvanilla")) {
-					opts->algo = TWO_RAY_GROUND_VANILLA;
-				} else if (!strcasecmp(optarg, "shadowing")) {
-					opts->algo = SHADOWING;
-				} else if (!strcasecmp(optarg, "nakagami")) {
-					opts->algo = NAKAGAMI;
-				} else {
-					fprintf(stderr, "Algorithm \"%s\" not supported!\n",
-							av[1]);
-					print_usage();
-					exit(EXIT_FAILURE);
-				}
-				break;
+		case 'a':
+			if (!strcasecmp(optarg, "friis")) {
+				opts->algo = FRIIS;
+			} else if (!strcasecmp(optarg, "tworayground")) {
+				opts->algo = TWO_RAY_GROUND;
+			} else if (!strcasecmp(optarg, "tworaygroundvanilla")) {
+				opts->algo = TWO_RAY_GROUND_VANILLA;
+			} else if (!strcasecmp(optarg, "shadowing")) {
+				opts->algo = SHADOWING;
+			} else if (!strcasecmp(optarg, "nakagami")) {
+				opts->algo = NAKAGAMI;
+			} else {
+				fprintf(stderr, "Algorithm \"%s\" not supported!\n",
+						av[1]);
+				print_usage();
+				exit(EXIT_FAILURE);
+			}
+			break;
 
-			case 'd':
-				opts->node_distance = strtod(optarg, NULL);
-				break;
+		case 'd':
+			opts->node_distance = strtod(optarg, NULL);
+			break;
 
-			case 'f':
-				opts->frequency = strtod(optarg, NULL);
-				break;
+		case 'f':
+			opts->frequency = strtod(optarg, NULL);
+			break;
 
-			case 'p':
-				opts->tx_power = strtod(optarg, NULL);
-				break;
+		case 'p':
+			opts->tx_power = strtod(optarg, NULL);
+			break;
 
-			case 'l':
-				opts->system_loss = strtod(optarg, NULL);
-				break;
+		case 'l':
+			opts->system_loss = strtod(optarg, NULL);
+			break;
 
-			case 'r':
-				opts->rx_antenna_gain = strtod(optarg, NULL);
-				break;
+		case 'r':
+			opts->rx_antenna_gain = strtod(optarg, NULL);
+			break;
 
-			case 't':
-				opts->tx_antenna_gain = strtod(optarg, NULL);
-				break;
+		case 't':
+			opts->tx_antenna_gain = strtod(optarg, NULL);
+			break;
 
-			case 'u':
-				opts->rx_antenna_height = strtod(optarg, NULL);
-				break;
+		case 'u':
+			opts->rx_antenna_height = strtod(optarg, NULL);
+			break;
 
-			case 'i':
-				opts->tx_antenna_height = strtod(optarg, NULL);
-				break;
+		case 'i':
+			opts->tx_antenna_height = strtod(optarg, NULL);
+			break;
 
-			case 'g':
-				opts->shadowing_pathloss_exp = strtod(optarg, NULL);
-				break;
+		case 'g':
+			opts->shadowing_pathloss_exp = strtod(optarg, NULL);
+			break;
 
-			case 'h':
-				opts->shadowing_std_db = strtod(optarg, NULL);
-				break;
+		case 'h':
+			opts->shadowing_std_db = strtod(optarg, NULL);
+			break;
 
-			case 'j':
-				opts->shadowing_distance = strtod(optarg, NULL);
-				break;
+		case 'j':
+			opts->shadowing_distance = strtod(optarg, NULL);
+			break;
 
-			case '?':
-				break;
+		case '?':
+			break;
 
-			default:
-				printf("?? getopt returned character code 0%o ??\n", c);
+		default:
+			printf("?? getopt returned character code 0%o ??\n", c);
 		}
 	}
 
-	if (!opts->algo)
-		die(EXIT_FAILURE, "No algorithm given");
+	if (!opts->algo) {
+		fprintf(stderr, "No algorithn given\n");
+		print_usage();
+		exit(EXIT_FAILURE);
+	}
 
 	if (opts->node_distance < 0)
 		die(EXIT_FAILURE, "No valid distance given (> 0m)");
@@ -308,10 +360,16 @@ static struct opts* parse_opts(int ac, char **av)
 	return opts;
 }
 
-static double calc_friis(const struct opts *opts)
+
+static double
+calc_friis(const struct opts *opts, struct c_env *c_env)
 {
 	double dbm;
-	double wave_length = calc_wave_length(opts->frequency);
+	double wave_length;
+
+	(void)c_env; /* not required here */
+
+	wave_length = calc_wave_length(opts->frequency);
 
 	double rx_power = friis(opts->tx_power,
 							opts->tx_antenna_gain,
@@ -325,10 +383,16 @@ static double calc_friis(const struct opts *opts)
 	return dbm;
 }
 
-static double calc_two_ray_ground(const struct opts *opts)
+
+static double
+calc_two_ray_ground(const struct opts *opts, struct c_env *c_env)
 {
 	double dbm, rx_power;
-	double wave_length = calc_wave_length(opts->frequency);
+	double wave_length;
+
+	(void) c_env;
+
+	wave_length = calc_wave_length(opts->frequency);
 
 	double x_border = calc_crossover_distance(opts->tx_antenna_height,
 			                                  opts->rx_antenna_height,
@@ -359,9 +423,12 @@ static double calc_two_ray_ground(const struct opts *opts)
 	return dbm;
 }
 
-static double calc_two_ray_ground_vanilla(const struct opts *opts)
+static double
+calc_two_ray_ground_vanilla(const struct opts *opts, struct c_env *c_env)
 {
 	double dbm, rx_power;
+
+	(void)c_env; /* not required here */
 
 	rx_power = two_ray_ground(opts->tx_power,
 						opts->tx_antenna_gain,
@@ -376,7 +443,9 @@ static double calc_two_ray_ground_vanilla(const struct opts *opts)
 	return dbm;
 }
 
-static double calc_shadowing(const struct opts *opts, struct c_env *c_env)
+
+static double
+calc_shadowing(const struct opts *opts, struct c_env *c_env)
 {
 	double dbm, avg_db, pr, power_loss_db;
 	double wave_length = calc_wave_length(opts->frequency);
@@ -404,13 +473,15 @@ static double calc_shadowing(const struct opts *opts, struct c_env *c_env)
 	return dbm;
 }
 
-static double calc_nakagami(struct opts *opts, struct c_env *c_env)
+
+static double
+calc_nakagami(const struct opts *opts, struct c_env *c_env)
 {
 	double path_loss_dB = 0.0;
 	const double d_ref = 1.0;
 	double rx_power, pr_0, pr_1;
 
-	pr_0 = calc_friis(opts);
+	pr_0 = calc_friis(opts, c_env);
 
 
 	if (opts->node_distance > 0 &&
@@ -451,13 +522,13 @@ static double calc_nakagami(struct opts *opts, struct c_env *c_env)
 }
 
 
-
-static struct c_env* init_env(void)
+static struct c_env*
+init_env(void)
 {
 	struct c_env *ret;
 	int fd;
-	unsigned long rtn;
-	char *crypt_device;
+	unsigned long rtn = 0;
+		char *crypt_device;
 
 	gsl_rng_env_setup();
 
@@ -481,10 +552,10 @@ static struct c_env* init_env(void)
 	/* set seed */
 	crypt_device = SEED_DEVICE;
 	if ( (fd = open(crypt_device, O_RDONLY)) < 0 ) {
-		rtn = (long) time(NULL);
+		rtn = (long) time(NULL) ^ getpid();
 	} else {
-		if ( (read(fd, &rtn, sizeof(long))) < (int)sizeof(long)) {
-			rtn = (long) time(NULL);
+		if ( (read(fd, &rtn, sizeof(rtn))) < (int)sizeof(rtn)) {
+			rtn = (long) time(NULL) ^ getpid();
 		}
 	}
 	gsl_rng_set(ret->rng, rtn);
@@ -492,13 +563,17 @@ static struct c_env* init_env(void)
 	return ret;
 }
 
-static void finit_env(struct c_env *c_env)
+
+static void
+finit_env(struct c_env *c_env)
 {
 	gsl_rng_free(c_env->rng);
 	free(c_env);
 }
 
-int main(int ac, char **av)
+
+int
+main(int ac, char **av)
 {
 	struct opts *opts;
 	struct c_env *c_env;
@@ -509,25 +584,25 @@ int main(int ac, char **av)
 
 
 	switch (opts->algo) {
-		case FRIIS:
-			rx_power_dbm = calc_friis(opts);
-			break;
-		case TWO_RAY_GROUND:
-			rx_power_dbm = calc_two_ray_ground(opts);
-			break;
-		case TWO_RAY_GROUND_VANILLA:
-			rx_power_dbm = calc_two_ray_ground_vanilla(opts);
-			break;
-		case SHADOWING:
-			rx_power_dbm = calc_shadowing(opts, c_env);
-			break;
-		case NAKAGAMI:
-			rx_power_dbm = calc_nakagami(opts, c_env);
-			break;
-		default:
-			fprintf(stderr, "Programmed error in switch/case statement: %s:%d\n",
-					__FILE__, __LINE__);
-			exit(EXIT_FAILURE);
+	case FRIIS:
+		rx_power_dbm = calc_friis(opts, c_env);
+		break;
+	case TWO_RAY_GROUND:
+		rx_power_dbm = calc_two_ray_ground(opts, c_env);
+		break;
+	case TWO_RAY_GROUND_VANILLA:
+		rx_power_dbm = calc_two_ray_ground_vanilla(opts, c_env);
+		break;
+	case SHADOWING:
+		rx_power_dbm = calc_shadowing(opts, c_env);
+		break;
+	case NAKAGAMI:
+		rx_power_dbm = calc_nakagami(opts, c_env);
+		break;
+	default:
+		fprintf(stderr, "Programmed error in switch/case statement: %s:%d\n",
+				__FILE__, __LINE__);
+		exit(EXIT_FAILURE);
 	}
 
 
@@ -536,5 +611,7 @@ int main(int ac, char **av)
 	finit_env(c_env);
 	free(opts);
 
-	return 0;
+	return EXIT_SUCCESS;
 }
+
+/* vim:set ts=4 sw=4 tw=78 noet: */
