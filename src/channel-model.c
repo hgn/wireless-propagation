@@ -54,7 +54,6 @@ enum algo {
 };
 
 struct opts {
-	enum algo algo;
 	double node_distance;
 	double frequency;
 	double system_loss;
@@ -83,8 +82,9 @@ struct opts {
 
 struct c_env {
 	gsl_rng *rng;
+	enum algo algo;
+	double (*func)(const struct opts *, struct c_env *);
 };
-
 
 /* al cheapo forward declarations */
 static double calc_shadowing(const struct opts *, struct c_env *);
@@ -95,14 +95,15 @@ static double calc_friis(const struct opts *, struct c_env *);
 
 struct algorithms {
 	const char *name;
+	enum algo algo;
 	double (*func)(const struct opts *, struct c_env *);
 } algorithms[] = {
-	{ "shadowing", calc_shadowing },
-	{ "nakagami", calc_nakagami },
-	{ "tworaygroundvanilla", calc_two_ray_ground_vanilla },
-	{ "tworayground", calc_two_ray_ground },
-	{ "friis", calc_friis },
-	{ NULL, 0 }
+	{ "shadowing", SHADOWING,  calc_shadowing },
+	{ "nakagami", NAKAGAMI, calc_nakagami },
+	{ "tworaygroundvanilla", TWO_RAY_GROUND_VANILLA, calc_two_ray_ground_vanilla },
+	{ "tworayground", TWO_RAY_GROUND, calc_two_ray_ground },
+	{ "friis", FRIIS, calc_friis },
+	{ NULL, 0, 0 }
 };
 
 
@@ -235,10 +236,29 @@ setup_defaults(struct opts *opts)
 }
 
 
-static struct opts*
-parse_opts(int ac, char **av)
+static int
+find_algorithm(const char *arg, struct c_env *c_env)
 {
-	int c;
+	const char *name;
+	int i = 0;
+
+	name = algorithms[i++].name;
+	for (; name != NULL; name = algorithms[i++].name) {
+		if (!(strcasecmp(arg, algorithms[i].name))) {
+			c_env->func = algorithms[i].func;
+			c_env->algo = algorithms[i].algo;
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+
+static struct opts*
+parse_opts(int ac, char **av, struct c_env *c_env)
+{
+	int c, ret;
 	struct opts *opts;
 
 	opts = malloc(sizeof(*opts));
@@ -278,19 +298,10 @@ parse_opts(int ac, char **av)
 
 		switch (c) {
 		case 'a':
-			if (!strcasecmp(optarg, "friis")) {
-				opts->algo = FRIIS;
-			} else if (!strcasecmp(optarg, "tworayground")) {
-				opts->algo = TWO_RAY_GROUND;
-			} else if (!strcasecmp(optarg, "tworaygroundvanilla")) {
-				opts->algo = TWO_RAY_GROUND_VANILLA;
-			} else if (!strcasecmp(optarg, "shadowing")) {
-				opts->algo = SHADOWING;
-			} else if (!strcasecmp(optarg, "nakagami")) {
-				opts->algo = NAKAGAMI;
-			} else {
+			ret = find_algorithm(optarg, c_env);
+			if (!ret) {
 				fprintf(stderr, "Algorithm \"%s\" not supported!\n",
-						av[1]);
+						optarg);
 				print_usage();
 				exit(EXIT_FAILURE);
 			}
@@ -348,7 +359,7 @@ parse_opts(int ac, char **av)
 		}
 	}
 
-	if (!opts->algo) {
+	if (c_env->algo == 0) {
 		fprintf(stderr, "No algorithn given\n");
 		print_usage();
 		exit(EXIT_FAILURE);
@@ -579,32 +590,11 @@ main(int ac, char **av)
 	struct c_env *c_env;
 	double rx_power_dbm;
 
-	opts = parse_opts(ac, av);
 	c_env = init_env();
+	opts = parse_opts(ac, av, c_env);
 
-
-	switch (opts->algo) {
-	case FRIIS:
-		rx_power_dbm = calc_friis(opts, c_env);
-		break;
-	case TWO_RAY_GROUND:
-		rx_power_dbm = calc_two_ray_ground(opts, c_env);
-		break;
-	case TWO_RAY_GROUND_VANILLA:
-		rx_power_dbm = calc_two_ray_ground_vanilla(opts, c_env);
-		break;
-	case SHADOWING:
-		rx_power_dbm = calc_shadowing(opts, c_env);
-		break;
-	case NAKAGAMI:
-		rx_power_dbm = calc_nakagami(opts, c_env);
-		break;
-	default:
-		fprintf(stderr, "Programmed error in switch/case statement: %s:%d\n",
-				__FILE__, __LINE__);
-		exit(EXIT_FAILURE);
-	}
-
+	/* func point to the particular function */
+	rx_power_dbm = c_env->func(opts, c_env);
 
 	fprintf(stdout, "%lf\n", rx_power_dbm);
 
