@@ -253,8 +253,8 @@ find_algorithm(const char *arg, struct c_env *c_env)
 	const char *name;
 	int i = 0;
 
-	name = algorithms[i++].name;
-	for (; name != NULL; name = algorithms[i++].name) {
+	name = algorithms[i].name;
+	for (; algorithms[i].name != NULL; name = algorithms[i++].name) {
 		if (!(strcasecmp(arg, algorithms[i].name))) {
 			c_env->func = algorithms[i].func;
 			c_env->algo = algorithms[i].algo;
