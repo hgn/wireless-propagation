@@ -10,4 +10,5 @@ clean:
 	cd latex && $(MAKE) clean && cd ..;
 	@rm -f *.gpi
 	@rm -f *.dat
+	@rm -f *.eps
 	@rm -f *.pdf
