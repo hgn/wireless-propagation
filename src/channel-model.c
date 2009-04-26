@@ -341,58 +341,52 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 			}
 			break;
 
+		/* test case values */
 		case 's':
 			opts->start = strtod(optarg, NULL);
 			break;
-
 		case 'e':
 			opts->end = strtod(optarg, NULL);
 			break;
-
 		case 'd':
 			opts->delta = strtod(optarg, NULL);
 			break;
 
+		/* standard system values */
 		case 'f':
 			opts->frequency = strtod(optarg, NULL);
 			break;
-
 		case 'p':
 			opts->tx_power = strtod(optarg, NULL);
 			break;
-
 		case 'l':
 			opts->system_loss = strtod(optarg, NULL);
 			break;
-
 		case 'r':
 			opts->rx_antenna_gain = strtod(optarg, NULL);
 			break;
-
 		case 't':
 			opts->tx_antenna_gain = strtod(optarg, NULL);
 			break;
-
 		case 'u':
 			opts->rx_antenna_height = strtod(optarg, NULL);
 			break;
-
 		case 'i':
 			opts->tx_antenna_height = strtod(optarg, NULL);
 			break;
 
+		/* shadowing values */
 		case 'g':
 			opts->shadowing_pathloss_exp = strtod(optarg, NULL);
 			break;
-
 		case 'h':
 			opts->shadowing_std_db = strtod(optarg, NULL);
 			break;
-
 		case 'j':
 			opts->shadowing_distance = strtod(optarg, NULL);
 			break;
 
+		/* log distance model values */
 		case 'P':
 			opts->log_distance_exponent = strtod(optarg, NULL);
 			break;
