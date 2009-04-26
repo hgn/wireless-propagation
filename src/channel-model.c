@@ -43,6 +43,10 @@
 #define	DEFAULT_NAKAGAMI_D1_M 200
 #define	DEFAULT_NAKAGAMI_USE_DIST 1 /* false */
 
+/* log distance values */
+#define	DEFAULT_LOG_DISTANCE_EXPONENT 3.0
+#define	DEFAULT_LOG_DISTANCE_REFERENCE_DISTANCE 1.0
+
 #define SPEED_OF_LIGHT  299792458.0
 
 /* 1 meter iteration steps from 1 meter node distance till 500 distance */
@@ -57,6 +61,7 @@ enum algo {
 	TWO_RAY_GROUND_VANILLA,
 	SHADOWING,
 	NAKAGAMI,
+	LOG_DISTANCE,
 };
 
 struct opts {
@@ -87,6 +92,9 @@ struct opts {
 	double nakagami_d0_m;
 	double nakagami_d1_m;
 	double nakagami_use_dist;
+
+	double log_distance_exponent;
+	double log_distance_reference_dist;
 };
 
 struct c_env {
@@ -101,6 +109,7 @@ static double calc_nakagami(const struct opts *, struct c_env *, const double);
 static double calc_two_ray_ground_vanilla(const struct opts *, struct c_env *, const double);
 static double calc_two_ray_ground(const struct opts *, struct c_env *, const double);
 static double calc_friis(const struct opts *, struct c_env *, const double);
+static double calc_log_distance(const struct opts *, struct c_env *, const double);
 
 struct algorithms {
 	const char *name;
@@ -112,6 +121,7 @@ struct algorithms {
 	{ "tworaygroundvanilla", TWO_RAY_GROUND_VANILLA, calc_two_ray_ground_vanilla },
 	{ "tworayground", TWO_RAY_GROUND, calc_two_ray_ground },
 	{ "friis", FRIIS, calc_friis },
+	{ "logdistance", LOG_DISTANCE, calc_log_distance },
 	{ NULL, 0, 0 }
 };
 
@@ -241,6 +251,10 @@ setup_defaults(struct opts *opts)
 	opts->nakagami_d1_m = DEFAULT_NAKAGAMI_D1_M;
 	opts->nakagami_use_dist = DEFAULT_NAKAGAMI_USE_DIST;
 
+	/* log distance setup */
+	opts->log_distance_exponent = DEFAULT_LOG_DISTANCE_EXPONENT;
+	opts->log_distance_reference_dist = DEFAULT_LOG_DISTANCE_REFERENCE_DISTANCE;
+
 	opts->start =  DEFAULT_START;
 	opts->end =  DEFAULT_END;
 	opts->delta = DEFAULT_DELTA;
@@ -304,10 +318,14 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 			{"shadowingstddb",       1, 0, 'h'},
 			{"shadowingdistance",    1, 0, 'j'},
 
+			/* log distance values */
+			{"logdistanceexponent", 1, 0, 'P'},
+			{"logdistancereferencedistance", 1, 0, 'O'},
+
 			{0, 0, 0, 0}
 		};
 
-		c = getopt_long(ac, av, "a:s:e:d:f:l:p:r:t:u:i:g:h:j:",
+		c = getopt_long(ac, av, "a:s:e:d:f:l:p:r:t:u:i:g:h:j:P:O:",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -373,6 +391,13 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 
 		case 'j':
 			opts->shadowing_distance = strtod(optarg, NULL);
+			break;
+
+		case 'P':
+			opts->log_distance_exponent = strtod(optarg, NULL);
+			break;
+		case 'O':
+			opts->log_distance_reference_dist = strtod(optarg, NULL);
 			break;
 
 		case '?':
@@ -511,6 +536,44 @@ calc_shadowing(const struct opts *opts, struct c_env *c_env, const double node_d
 	return dbm;
 }
 
+static double
+calc_log_distance(const struct opts *opts, struct c_env *c_env, const double node_distance)
+{
+	double rx_power_dbm;
+	double path_loss_db, wave_length;
+	double rxc, reference_lost;
+
+	(void) c_env;
+
+	wave_length = calc_wave_length(opts->frequency);
+
+	rx_power_dbm = friis(opts->tx_power,
+					opts->tx_antenna_gain,
+					opts->rx_antenna_gain,
+					wave_length,
+					opts->system_loss,
+					node_distance);
+
+	if (node_distance < opts->log_distance_reference_dist) {
+		return rx_power_dbm;
+	}
+
+	reference_lost = friis(opts->tx_power,
+					opts->tx_antenna_gain,
+					opts->rx_antenna_gain,
+					wave_length,
+					opts->system_loss,
+					opts->log_distance_reference_dist);
+
+
+	path_loss_db = 10 * opts->log_distance_exponent *
+		log10(node_distance / opts->log_distance_reference_dist);
+
+	rxc = - reference_lost - path_loss_db;
+
+	return rx_power_dbm + rxc;
+}
+
 
 static double
 calc_nakagami(const struct opts *opts, struct c_env *c_env, const double node_distance)
@@ -520,11 +583,12 @@ calc_nakagami(const struct opts *opts, struct c_env *c_env, const double node_di
 	double rx_power, pr_0, pr_1;
 
 	pr_0 = calc_friis(opts, c_env, node_distance);
+#if 0
 
 
 	if (node_distance > 0 &&
 		node_distance <= opts->nakagami_d0_gamma) {
-		path_loss_dB = 10 * opts->nakagami_gamma_0 * log10(node_distance/d_ref);
+		path_loss_dB = 10 * opts->nakagami_gamma_0 * log10(node_distance / d_ref);
 	}
 	if (node_distance > opts->nakagami_d0_gamma &&
 		node_distance <= opts->nakagami_gamma_1) {
@@ -537,9 +601,13 @@ calc_nakagami(const struct opts *opts, struct c_env *c_env, const double node_di
 					   10 * opts->nakagami_gamma_2 * log10(node_distance / opts->nakagami_d1_gamma);
 	}
 
+#endif
+
 
     /* calculate the receiving power at distance dist */
-	pr_1 = pr_0; // * pow(10.0, -path_loss_dB / 10.0);
+	//pr_1 = pr_0; // * pow(10.0, -path_loss_dB / 10.0);
+	//pr_1 = pr_0 * pow(10.0, -path_loss_dB / 10.0);
+	pr_1 = dbm_to_watt(pr_0);
 
 	if (!opts->nakagami_use_dist) {
 		rx_power = pr_1;
@@ -556,7 +624,7 @@ calc_nakagami(const struct opts *opts, struct c_env *c_env, const double node_di
 		rx_power = gsl_ran_gamma(c_env->rng, m, pr_1 / m);
 	}
 
-	return rx_power;
+	return watt_to_dbm(rx_power);
 }
 
 
