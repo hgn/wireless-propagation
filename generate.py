@@ -251,6 +251,35 @@ def log_distance():
     sts = os.waitpid(p.pid, 0)
 
 
+##########################################
+##########################################
+##########################################
+def three_log_distance():
+
+    algorithm = "threelogdistance"
+
+    # first of all open gnuplot template file
+    f = open(algorithm + ".gpi", 'w')
+    f.write(points_gnuplot_template(algorithm))
+    f.close()
+
+    # open  data file
+    fdat = open(algorithm + ".dat", 'w')
+
+    output = Popen([p_path,
+        "--algorithm", algorithm ],
+        stdout=PIPE).communicate()[0]
+    fdat.write("%s\n" % (output))
+
+    fdat.close()
+
+    # execute gnuplot
+    p = Popen("gnuplot" + " " + algorithm + ".gpi", shell=True)
+    sts = os.waitpid(p.pid, 0)
+
+    # move image in tex directory
+    p = Popen("mv " + algorithm + ".pdf latex/images", shell=True)
+    sts = os.waitpid(p.pid, 0)
 
 
 
@@ -262,3 +291,4 @@ trg_vanilla()
 shadowing()
 nakagami()
 log_distance()
+three_log_distance()

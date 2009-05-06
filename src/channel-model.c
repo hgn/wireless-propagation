@@ -47,6 +47,15 @@
 #define	DEFAULT_LOG_DISTANCE_EXPONENT 3.0
 #define	DEFAULT_LOG_DISTANCE_REFERENCE_DISTANCE 1.0
 
+/* three log distance values */
+#define	DEFAULT_THREE_LOG_DISTANCE_REFERENCE_DISTANCE_1 1.0
+#define	DEFAULT_THREE_LOG_DISTANCE_EXPONENT_1 1.9
+#define	DEFAULT_THREE_LOG_DISTANCE_REFERENCE_DISTANCE_2 200.0
+#define	DEFAULT_THREE_LOG_DISTANCE_EXPONENT_2 3.8
+#define	DEFAULT_THREE_LOG_DISTANCE_REFERENCE_DISTANCE_3 500.0
+#define	DEFAULT_THREE_LOG_DISTANCE_EXPONENT_3 3.8
+#define	DEFAULT_THREE_LOG_DISTANCE_REFERENCE_DISTANCE 1.0
+
 #define SPEED_OF_LIGHT  299792458.0
 
 /* 1 meter iteration steps from 1 meter node distance till 500 distance */
@@ -62,6 +71,7 @@ enum algo {
 	SHADOWING,
 	NAKAGAMI,
 	LOG_DISTANCE,
+	THREE_LOG_DISTANCE
 };
 
 struct opts {
@@ -93,9 +103,30 @@ struct opts {
 	double nakagami_d1_m;
 	double nakagami_use_dist;
 
-	double log_distance_exponent;
-	double log_distance_reference_dist;
+
+	union {
+		struct {
+			double exponent;
+			double reference_dist;
+		} log_distance;
+
+		struct {
+			double distance_1;
+			double distance_2;
+			double distance_3;
+
+			double exponent_1;
+			double exponent_2;
+			double exponent_3;
+
+			double reference_distance;
+		} three_log_distance;
+	};
+
 };
+
+#define	OPTS_THREE_LOG(opts) opts->three_log_distance
+#define	OPTS_LOG_DISTANCE(opts) opts->log_distance
 
 struct c_env {
 	gsl_rng *rng;
@@ -110,6 +141,7 @@ static double calc_two_ray_ground_vanilla(const struct opts *, struct c_env *, c
 static double calc_two_ray_ground(const struct opts *, struct c_env *, const double);
 static double calc_friis(const struct opts *, struct c_env *, const double);
 static double calc_log_distance(const struct opts *, struct c_env *, const double);
+static double calc_three_log_distance(const struct opts *, struct c_env *, const double);
 
 struct algorithms {
 	const char *name;
@@ -122,6 +154,7 @@ struct algorithms {
 	{ "tworayground", TWO_RAY_GROUND, calc_two_ray_ground },
 	{ "friis", FRIIS, calc_friis },
 	{ "logdistance", LOG_DISTANCE, calc_log_distance },
+	{ "threelogdistance", THREE_LOG_DISTANCE, calc_three_log_distance },
 	{ NULL, 0, 0 }
 };
 
@@ -252,8 +285,19 @@ setup_defaults(struct opts *opts)
 	opts->nakagami_use_dist = DEFAULT_NAKAGAMI_USE_DIST;
 
 	/* log distance setup */
-	opts->log_distance_exponent = DEFAULT_LOG_DISTANCE_EXPONENT;
-	opts->log_distance_reference_dist = DEFAULT_LOG_DISTANCE_REFERENCE_DISTANCE;
+	OPTS_LOG_DISTANCE(opts).exponent = DEFAULT_LOG_DISTANCE_EXPONENT;
+	OPTS_LOG_DISTANCE(opts).reference_dist = DEFAULT_LOG_DISTANCE_REFERENCE_DISTANCE;
+
+	/* thre log distance setup */
+	OPTS_THREE_LOG(opts).distance_1 = DEFAULT_THREE_LOG_DISTANCE_REFERENCE_DISTANCE_1;
+	OPTS_THREE_LOG(opts).distance_2 = DEFAULT_THREE_LOG_DISTANCE_REFERENCE_DISTANCE_2;
+	OPTS_THREE_LOG(opts).distance_3 = DEFAULT_THREE_LOG_DISTANCE_REFERENCE_DISTANCE_3;
+
+	OPTS_THREE_LOG(opts).exponent_1 = DEFAULT_THREE_LOG_DISTANCE_EXPONENT_1;
+	OPTS_THREE_LOG(opts).exponent_2 = DEFAULT_THREE_LOG_DISTANCE_EXPONENT_2;
+	OPTS_THREE_LOG(opts).exponent_3 = DEFAULT_THREE_LOG_DISTANCE_EXPONENT_3;
+
+	OPTS_THREE_LOG(opts).reference_distance = DEFAULT_THREE_LOG_DISTANCE_REFERENCE_DISTANCE;
 
 	opts->start =  DEFAULT_START;
 	opts->end =  DEFAULT_END;
@@ -297,13 +341,13 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 		int option_index = 0;
 		static struct option long_options[] = {
 
+			/* basic simulation setup */
 			{"algorithm",       1, 0, 'a'},
 			{"start",           1, 0, 's'},
 			{"end",             1, 0, 'e'},
 			{"delta",           1, 0, 'd'},
 
 			/* standard values */
-
 			{"distance",        1, 0, 'd'},
 			{"frequency",       1, 0, 'f'},
 			{"systemloss",      1, 0, 'l'},
@@ -322,10 +366,19 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 			{"logdistanceexponent", 1, 0, 'P'},
 			{"logdistancereferencedistance", 1, 0, 'O'},
 
+			/* three log distance values */
+			{"threelogexponent1", 1, 0, 'Q'},
+			{"threelogexponent2", 1, 0, 'W'},
+			{"threelogexponent3", 1, 0, 'E'},
+			{"threelogdistance1", 1, 0, 'R'},
+			{"threelogdistance2", 1, 0, 'T'},
+			{"threelogdistance3", 1, 0, 'Y'},
+			{"threelogreferencedistance", 1, 0, 'U'},
+
 			{0, 0, 0, 0}
 		};
 
-		c = getopt_long(ac, av, "a:s:e:d:f:l:p:r:t:u:i:g:h:j:P:O:",
+		c = getopt_long(ac, av, "a:s:e:d:f:l:p:r:t:u:i:g:h:j:P:O:Q:W:E:R:T:Y:U:",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -388,10 +441,35 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 
 		/* log distance model values */
 		case 'P':
-			opts->log_distance_exponent = strtod(optarg, NULL);
+			OPTS_LOG_DISTANCE(opts).exponent = strtod(optarg, NULL);
 			break;
 		case 'O':
-			opts->log_distance_reference_dist = strtod(optarg, NULL);
+			OPTS_LOG_DISTANCE(opts).reference_dist = strtod(optarg, NULL);
+			break;
+
+		/* three log distance model */
+		case 'Q':
+			OPTS_THREE_LOG(opts).exponent_1 = strtod(optarg, NULL);
+			break;
+		case 'W':
+			OPTS_THREE_LOG(opts).exponent_2 = strtod(optarg, NULL);
+			break;
+		case 'E':
+			OPTS_THREE_LOG(opts).exponent_3 = strtod(optarg, NULL);
+			break;
+
+		case 'R':
+			OPTS_THREE_LOG(opts).distance_1 = strtod(optarg, NULL);
+			break;
+		case 'T':
+			OPTS_THREE_LOG(opts).distance_2 = strtod(optarg, NULL);
+			break;
+		case 'Y':
+			OPTS_THREE_LOG(opts).distance_3 = strtod(optarg, NULL);
+			break;
+
+		case 'U':
+			OPTS_THREE_LOG(opts).reference_distance = strtod(optarg, NULL);
 			break;
 
 		case '?':
@@ -548,7 +626,7 @@ calc_log_distance(const struct opts *opts, struct c_env *c_env, const double nod
 					opts->system_loss,
 					node_distance);
 
-	if (node_distance < opts->log_distance_reference_dist) {
+	if (node_distance < OPTS_LOG_DISTANCE(opts).reference_dist) {
 		return rx_power_dbm;
 	}
 
@@ -557,11 +635,70 @@ calc_log_distance(const struct opts *opts, struct c_env *c_env, const double nod
 					opts->rx_antenna_gain,
 					wave_length,
 					opts->system_loss,
-					opts->log_distance_reference_dist);
+					OPTS_LOG_DISTANCE(opts).reference_dist);
 
 
-	path_loss_db = 10 * opts->log_distance_exponent *
-		log10(node_distance / opts->log_distance_reference_dist);
+	path_loss_db = 10 * OPTS_LOG_DISTANCE(opts).exponent *
+		log10(node_distance / OPTS_LOG_DISTANCE(opts).reference_dist);
+
+	rxc = - reference_lost - path_loss_db;
+
+	return rx_power_dbm + rxc;
+}
+
+static double
+calc_three_log_distance(const struct opts *opts, struct c_env *c_env, const double node_distance)
+{
+	double rx_power_dbm;
+	double path_loss_db, wave_length;
+	double rxc, reference_lost;
+
+	(void) c_env;
+
+	wave_length = calc_wave_length(opts->frequency);
+
+	rx_power_dbm = friis(opts->tx_power,
+					opts->tx_antenna_gain,
+					opts->rx_antenna_gain,
+					wave_length,
+					opts->system_loss,
+					node_distance);
+
+	if (node_distance < OPTS_THREE_LOG(opts).distance_1) {
+		return rx_power_dbm;
+	}
+
+	/* calculate reference lost */
+	reference_lost = friis(opts->tx_power,
+					opts->tx_antenna_gain,
+					opts->rx_antenna_gain,
+					wave_length,
+					opts->system_loss,
+					OPTS_THREE_LOG(opts).reference_distance);
+
+	if (node_distance < OPTS_THREE_LOG(opts).distance_2) {
+
+		path_loss_db =
+			10 * OPTS_THREE_LOG(opts).exponent_1 *
+				log10(node_distance / OPTS_THREE_LOG(opts).distance_1);
+
+	} else if (node_distance < OPTS_THREE_LOG(opts).distance_3) {
+
+		path_loss_db =
+			10 * OPTS_THREE_LOG(opts).exponent_1 *
+				log10(OPTS_THREE_LOG(opts).distance_2 / OPTS_THREE_LOG(opts).distance_1) +
+			10 * OPTS_THREE_LOG(opts).exponent_2 *
+				log10(node_distance /  OPTS_THREE_LOG(opts).distance_2);
+
+	} else { /* broader away then distance_3 */
+		path_loss_db =
+			10 * OPTS_THREE_LOG(opts).exponent_1 *
+				log10(OPTS_THREE_LOG(opts).distance_2 / OPTS_THREE_LOG(opts).distance_1) +
+			10 * OPTS_THREE_LOG(opts).exponent_2 *
+				log10(OPTS_THREE_LOG(opts).distance_3 /  OPTS_THREE_LOG(opts).distance_2) +
+			10 * OPTS_THREE_LOG(opts).exponent_3 *
+				log10(node_distance /  OPTS_THREE_LOG(opts).distance_3);
+	}
 
 	rxc = - reference_lost - path_loss_db;
 
