@@ -90,6 +90,70 @@ def friis():
     sts = os.waitpid(p.pid, 0)
 
 
+##########################################
+##########################################
+##########################################
+def friis24():
+
+    algorithm = "friis"
+    name = "friis24"
+
+    # first of all open gnuplot template file
+    f = open(name + ".gpi", 'w')
+    f.write(points_gnuplot_template(name))
+    f.close()
+
+    # open  data file
+    fdat = open(name + ".dat", 'w')
+
+    output = Popen([p_path,
+        "--algorithm", algorithm, "--frequency", "2400000000" ],
+        stdout=PIPE).communicate()[0]
+    fdat.write("%s\n" % (output))
+
+    fdat.close()
+
+    # execute gnuplot
+    p = Popen("gnuplot" + " " + name + ".gpi", shell=True)
+    sts = os.waitpid(p.pid, 0)
+
+    # move image in tex directory
+    p = Popen("mv " + name + ".pdf latex/images", shell=True)
+    sts = os.waitpid(p.pid, 0)
+
+
+##########################################
+##########################################
+##########################################
+def friis50():
+
+    algorithm = "friis"
+    name = "friis50"
+
+    # first of all open gnuplot template file
+    f = open(name + ".gpi", 'w')
+    f.write(points_gnuplot_template(name))
+    f.close()
+
+    # open  data file
+    fdat = open(name + ".dat", 'w')
+
+    output = Popen([p_path,
+        "--algorithm", algorithm, "--frequency", "5000000000" ],
+        stdout=PIPE).communicate()[0]
+    fdat.write("%s\n" % (output))
+
+    fdat.close()
+
+    # execute gnuplot
+    p = Popen("gnuplot" + " " + name + ".gpi", shell=True)
+    sts = os.waitpid(p.pid, 0)
+
+    # move image in tex directory
+    p = Popen("mv " + name + ".pdf latex/images", shell=True)
+    sts = os.waitpid(p.pid, 0)
+
+
 
 
 ##########################################
@@ -286,6 +350,8 @@ def three_log_distance():
 ##########################################
 ##########################################
 friis()
+friis24()
+friis50()
 trg()
 trg_vanilla()
 shadowing()

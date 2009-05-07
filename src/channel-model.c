@@ -726,7 +726,7 @@ init_env(void)
 	struct c_env *ret;
 	int fd;
 	unsigned long rtn = 0;
-		char *crypt_device;
+	char *crypt_device;
 
 	gsl_rng_env_setup();
 
