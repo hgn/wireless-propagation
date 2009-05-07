@@ -29,12 +29,6 @@
 #define	DEFAULT_SHADOWING_DISTANCE 1.0
 
 /* nakagami values */
-#define	DEFAULT_NAKAGAMI_GAMMA_0 1.9
-#define	DEFAULT_NAKAGAMI_GAMMA_1 3.8
-#define	DEFAULT_NAKAGAMI_GAMMA_2 3.8
-#define	DEFAULT_NAKAGAMI_D0_GAMMA 200
-#define	DEFAULT_NAKAGAMI_D1_GAMMA 500
-
 #define	DEFAULT_NAKAGAMI_M0 1.50
 #define	DEFAULT_NAKAGAMI_M1 0.75
 #define	DEFAULT_NAKAGAMI_M2 0.75
@@ -91,42 +85,37 @@ struct opts {
 	double shadowing_std_db;
 	double shadowing_distance;
 
-	double nakagami_gamma_0;
-	double nakagami_gamma_1;
-	double nakagami_gamma_2;
-	double nakagami_d0_gamma;
-	double nakagami_d1_gamma;
-	double nakagami_m0;
-	double nakagami_m1;
-	double nakagami_m2;
-	double nakagami_d0_m;
-	double nakagami_d1_m;
-	double nakagami_use_dist;
+	struct {
+	double m0;
+	double m1;
+	double m2;
+	double d0_m;
+	double d1_m;
+	double use_dist;
+	} nakagami;
 
+	struct {
+		double exponent;
+		double reference_dist;
+	} log_distance;
 
-	union {
-		struct {
-			double exponent;
-			double reference_dist;
-		} log_distance;
+	struct {
+		double distance_1;
+		double distance_2;
+		double distance_3;
 
-		struct {
-			double distance_1;
-			double distance_2;
-			double distance_3;
+		double exponent_1;
+		double exponent_2;
+		double exponent_3;
 
-			double exponent_1;
-			double exponent_2;
-			double exponent_3;
-
-			double reference_distance;
-		} three_log_distance;
-	};
+		double reference_distance;
+	} three_log_distance;
 
 };
 
 #define	OPTS_THREE_LOG(opts) opts->three_log_distance
 #define	OPTS_LOG_DISTANCE(opts) opts->log_distance
+#define	OPTS_NAKAGAMI(opts) opts->nakagami
 
 struct c_env {
 	gsl_rng *rng;
@@ -272,17 +261,12 @@ setup_defaults(struct opts *opts)
 	opts->shadowing_distance     = DEFAULT_SHADOWING_DISTANCE;
 
 	/* nakagami setup */
-	opts->nakagami_gamma_0 = DEFAULT_NAKAGAMI_GAMMA_0;
-	opts->nakagami_gamma_1 = DEFAULT_NAKAGAMI_GAMMA_1;
-	opts->nakagami_gamma_2 = DEFAULT_NAKAGAMI_GAMMA_2;
-	opts->nakagami_d0_gamma = DEFAULT_NAKAGAMI_D0_GAMMA;
-	opts->nakagami_d1_gamma = DEFAULT_NAKAGAMI_D1_GAMMA;
-	opts->nakagami_m0 = DEFAULT_NAKAGAMI_M0;
-	opts->nakagami_m1 = DEFAULT_NAKAGAMI_M1;
-	opts->nakagami_m2 = DEFAULT_NAKAGAMI_M2;
-	opts->nakagami_d0_m = DEFAULT_NAKAGAMI_D0_M;
-	opts->nakagami_d1_m = DEFAULT_NAKAGAMI_D1_M;
-	opts->nakagami_use_dist = DEFAULT_NAKAGAMI_USE_DIST;
+	OPTS_NAKAGAMI(opts).m0 = DEFAULT_NAKAGAMI_M0;
+	OPTS_NAKAGAMI(opts).m1 = DEFAULT_NAKAGAMI_M1;
+	OPTS_NAKAGAMI(opts).m2 = DEFAULT_NAKAGAMI_M2;
+	OPTS_NAKAGAMI(opts).d0_m = DEFAULT_NAKAGAMI_D0_M;
+	OPTS_NAKAGAMI(opts).d1_m = DEFAULT_NAKAGAMI_D1_M;
+	OPTS_NAKAGAMI(opts).use_dist = DEFAULT_NAKAGAMI_USE_DIST;
 
 	/* log distance setup */
 	OPTS_LOG_DISTANCE(opts).exponent = DEFAULT_LOG_DISTANCE_EXPONENT;
@@ -630,6 +614,7 @@ calc_log_distance(const struct opts *opts, struct c_env *c_env, const double nod
 		return rx_power_dbm;
 	}
 
+	/* calculate reference lost */
 	reference_lost = friis(opts->tx_power,
 					opts->tx_antenna_gain,
 					opts->rx_antenna_gain,
@@ -637,9 +622,10 @@ calc_log_distance(const struct opts *opts, struct c_env *c_env, const double nod
 					opts->system_loss,
 					OPTS_LOG_DISTANCE(opts).reference_dist);
 
+	path_loss_db =
+		10 * OPTS_LOG_DISTANCE(opts).exponent *
+			log10(node_distance / OPTS_LOG_DISTANCE(opts).reference_dist);
 
-	path_loss_db = 10 * OPTS_LOG_DISTANCE(opts).exponent *
-		log10(node_distance / OPTS_LOG_DISTANCE(opts).reference_dist);
 
 	rxc = - reference_lost - path_loss_db;
 
@@ -709,48 +695,23 @@ calc_three_log_distance(const struct opts *opts, struct c_env *c_env, const doub
 static double
 calc_nakagami(const struct opts *opts, struct c_env *c_env, const double node_distance)
 {
-	double path_loss_dB = 0.0;
-	const double d_ref = 1.0;
 	double rx_power, pr_0, pr_1;
 
-	pr_0 = calc_friis(opts, c_env, node_distance);
-#if 0
+	pr_0 = calc_three_log_distance(opts, c_env, node_distance);
 
-
-	if (node_distance > 0 &&
-		node_distance <= opts->nakagami_d0_gamma) {
-		path_loss_dB = 10 * opts->nakagami_gamma_0 * log10(node_distance / d_ref);
-	}
-	if (node_distance > opts->nakagami_d0_gamma &&
-		node_distance <= opts->nakagami_gamma_1) {
-		path_loss_dB = 10 * opts->nakagami_gamma_0 * log10(opts->nakagami_d0_gamma / d_ref) +
-			           10 * opts->nakagami_gamma_1 * log10(node_distance / opts->nakagami_d0_gamma);
-	}
-	if (node_distance > opts->nakagami_gamma_1) {
-		path_loss_dB = 10 * opts->nakagami_gamma_0 * log10(opts->nakagami_d0_gamma / d_ref) +
-			           10 * opts->nakagami_gamma_1 * log10(opts->nakagami_gamma_1 / opts->nakagami_d0_gamma) +
-					   10 * opts->nakagami_gamma_2 * log10(node_distance / opts->nakagami_d1_gamma);
-	}
-
-#endif
-
-
-    /* calculate the receiving power at distance dist */
-	//pr_1 = pr_0; // * pow(10.0, -path_loss_dB / 10.0);
-	//pr_1 = pr_0 * pow(10.0, -path_loss_dB / 10.0);
 	pr_1 = dbm_to_watt(pr_0);
 
-	if (!opts->nakagami_use_dist) {
+	if (!OPTS_NAKAGAMI(opts).use_dist) {
 		rx_power = pr_1;
 	} else {
 		double m;
 
-		if (node_distance <= opts->nakagami_d0_m)
-			m = opts->nakagami_m0;
-		else if (node_distance <= opts->nakagami_d1_m)
-			m = opts->nakagami_m1;
+		if (node_distance <= OPTS_NAKAGAMI(opts).d0_m)
+			m = OPTS_NAKAGAMI(opts).m0;
+		else if (node_distance <= OPTS_NAKAGAMI(opts).d1_m)
+			m = OPTS_NAKAGAMI(opts).m1;
 		else
-			m = opts->nakagami_m2;
+			m = OPTS_NAKAGAMI(opts).m2;
 
 		rx_power = gsl_ran_gamma(c_env->rng, m, pr_1 / m);
 	}
@@ -828,9 +789,6 @@ main(int ac, char **av)
 		rx_power_dbm = c_env->func(opts, c_env, node_distance);
 
 		fprintf(stdout, "%lf %lf\n", node_distance, rx_power_dbm);
-
-
-
 	}
 
 	finit_env(c_env);
