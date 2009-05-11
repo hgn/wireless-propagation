@@ -11,7 +11,7 @@ p_path = "./src/channel-model"
 ##########################################
 ##########################################
 ##########################################
-def points_gnuplot_template(alg):
+def points_gnuplot_template(alg, y_min = -150, y_max = 20):
     return """
     set term postscript eps enhanced color "Times" 30
     set output "%s.eps"
@@ -25,16 +25,16 @@ def points_gnuplot_template(alg):
     set xlabel "Node Distance [meter]"
     set ylabel "RX Power [dbm]"
 
-    set yrange[-150:20]
+    set yrange[%d:%d]
 
     set style line 1 linetype 1 linecolor rgb "#3e6694" lw 15
 
     plot "%s.dat" using 1:2 title "%s" with points ls 1
     !epstopdf --outfile=%s.pdf %s.eps
     !rm -rf %s.eps
-    """ % (alg, alg, alg, alg, alg, alg, alg)
+    """ % (alg, alg, y_min, y_max, alg, alg, alg, alg, alg)
 
-def lines_gnuplot_template(alg):
+def lines_gnuplot_template(alg, y_min = -150, y_max = 20):
     return """
     set term postscript eps enhanced color "Times" 30
     set output "%s.eps"
@@ -48,14 +48,14 @@ def lines_gnuplot_template(alg):
     set xlabel "Node Distance [meter]"
     set ylabel "RX Power [dbm]"
 
-    set yrange[-150:20]
+    set yrange[%d:%d]
 
     set style line 1 linetype 1 linecolor rgb "#3e6694" lw 4
 
     plot "%s.dat" using 1:2 title "%s" with lines ls 1
     !epstopdf --outfile=%s.pdf %s.eps
     !rm -rf %s.eps
-    """ % (alg, alg, alg, alg, alg, alg, alg)
+    """ % (alg, alg, y_min, y_max, alg, alg, alg, alg, alg)
 
 
 
@@ -93,21 +93,21 @@ def friis():
 ##########################################
 ##########################################
 ##########################################
-def friis24():
+def friis5000():
 
     algorithm = "friis"
-    name = "friis24"
+    name = "friis5000"
 
     # first of all open gnuplot template file
     f = open(name + ".gpi", 'w')
-    f.write(points_gnuplot_template(name))
+    f.write(points_gnuplot_template(name, y_min = -90, y_max = -10))
     f.close()
 
     # open  data file
     fdat = open(name + ".dat", 'w')
 
     output = Popen([p_path,
-        "--algorithm", algorithm, "--frequency", "2400000000" ],
+        "--algorithm", algorithm, "--frequency", "5000000000" ],
         stdout=PIPE).communicate()[0]
     fdat.write("%s\n" % (output))
 
@@ -125,21 +125,21 @@ def friis24():
 ##########################################
 ##########################################
 ##########################################
-def friis50():
+def friis900():
 
     algorithm = "friis"
-    name = "friis50"
+    name = "friis900"
 
     # first of all open gnuplot template file
     f = open(name + ".gpi", 'w')
-    f.write(points_gnuplot_template(name))
+    f.write(points_gnuplot_template(name, y_min = -90, y_max = -10))
     f.close()
 
     # open  data file
     fdat = open(name + ".dat", 'w')
 
     output = Popen([p_path,
-        "--algorithm", algorithm, "--frequency", "5000000000" ],
+        "--algorithm", algorithm, "--frequency", "900000000" ],
         stdout=PIPE).communicate()[0]
     fdat.write("%s\n" % (output))
 
@@ -350,8 +350,8 @@ def three_log_distance():
 ##########################################
 ##########################################
 friis()
-friis24()
-friis50()
+friis5000()
+friis900()
 trg()
 trg_vanilla()
 shadowing()
