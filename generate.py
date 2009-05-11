@@ -11,7 +11,8 @@ p_path = "./src/channel-model"
 ##########################################
 ##########################################
 ##########################################
-def points_gnuplot_template(alg, y_min = -150, y_max = 20):
+
+def lines_gnuplot_template_1(alg, y_min = -150, y_max = 20, linewidth = 4, datafile1="/dev/null"):
     return """
     set term postscript eps enhanced color "Times" 30
     set output "%s.eps"
@@ -27,14 +28,14 @@ def points_gnuplot_template(alg, y_min = -150, y_max = 20):
 
     set yrange[%d:%d]
 
-    set style line 1 linetype 1 linecolor rgb "#3e6694" lw 15
+    set style line 1 linetype 1 linecolor rgb "#3e6694" lw %d
 
-    plot "%s.dat" using 1:2 title "%s" with points ls 1
+    plot "%s" using 1:2 title "%s" with lines ls 1
     !epstopdf --outfile=%s.pdf %s.eps
     !rm -rf %s.eps
-    """ % (alg, alg, y_min, y_max, alg, alg, alg, alg, alg)
+    """ % (alg, alg, y_min, y_max, linewidth, datafile1, alg, alg, alg, alg)
 
-def lines_gnuplot_template(alg, y_min = -150, y_max = 20):
+def lines_gnuplot_template_2(alg, y_min = -150, y_max = 20, linewidth = 4, datafile1="/dev/null", datafile2="/dev/null"):
     return """
     set term postscript eps enhanced color "Times" 30
     set output "%s.eps"
@@ -50,12 +51,14 @@ def lines_gnuplot_template(alg, y_min = -150, y_max = 20):
 
     set yrange[%d:%d]
 
-    set style line 1 linetype 1 linecolor rgb "#3e6694" lw 4
+    set style line 1 linetype 1 linecolor rgb "#3e6694" lw %d
 
-    plot "%s.dat" using 1:2 title "%s" with lines ls 1
+    plot "%s" using 1:2 title "%s" with lines ls 1, \
+         "%s" using 1:2 title ""   with lines ls 2
     !epstopdf --outfile=%s.pdf %s.eps
     !rm -rf %s.eps
-    """ % (alg, alg, y_min, y_max, alg, alg, alg, alg, alg)
+    """ % (alg, alg, y_min, y_max, linewidth, datafile1, alg, alg, alg, alg)
+
 
 
 
@@ -65,14 +68,15 @@ def lines_gnuplot_template(alg, y_min = -150, y_max = 20):
 def friis():
 
     algorithm = "friis"
+    datafile = algorithm + ".dat"
 
     # first of all open gnuplot template file
     f = open(algorithm + ".gpi", 'w')
-    f.write(points_gnuplot_template(algorithm))
+    f.write(lines_gnuplot_template_1(algorithm, datafile1=datafile))
     f.close()
 
     # open  data file
-    fdat = open(algorithm + ".dat", 'w')
+    fdat = open(datafile, 'w')
 
     output = Popen([p_path,
         "--algorithm", algorithm ],
@@ -97,14 +101,15 @@ def friis5000():
 
     algorithm = "friis"
     name = "friis5000"
+    datafile = algorithm + ".dat"
 
     # first of all open gnuplot template file
     f = open(name + ".gpi", 'w')
-    f.write(points_gnuplot_template(name, y_min = -90, y_max = -10))
+    f.write(lines_gnuplot_template_1(name, y_min = -90, y_max = -10, datafile1=datafile))
     f.close()
 
     # open  data file
-    fdat = open(name + ".dat", 'w')
+    fdat = open(datafile, 'w')
 
     output = Popen([p_path,
         "--algorithm", algorithm, "--frequency", "5000000000" ],
@@ -129,14 +134,15 @@ def friis900():
 
     algorithm = "friis"
     name = "friis900"
+    datafile = algorithm + ".dat"
 
     # first of all open gnuplot template file
     f = open(name + ".gpi", 'w')
-    f.write(points_gnuplot_template(name, y_min = -90, y_max = -10))
+    f.write(lines_gnuplot_template_1(name, y_min = -90, y_max = -10, datafile1=datafile))
     f.close()
 
     # open  data file
-    fdat = open(name + ".dat", 'w')
+    fdat = open(datafile, 'w')
 
     output = Popen([p_path,
         "--algorithm", algorithm, "--frequency", "900000000" ],
@@ -162,14 +168,15 @@ def friis900():
 def trg():
 
     algorithm = "tworayground"
+    datafile = algorithm + ".dat"
 
     # first of all open gnuplot template file
     f = open(algorithm + ".gpi", 'w')
-    f.write(points_gnuplot_template(algorithm))
+    f.write(lines_gnuplot_template_1(algorithm, datafile1=datafile))
     f.close()
 
     # open  data file
-    fdat = open(algorithm + ".dat", 'w')
+    fdat = open(datafile, 'w')
 
     output = Popen([p_path,
         "--algorithm", algorithm ],
@@ -194,14 +201,15 @@ def trg():
 def trg_vanilla():
 
     algorithm = "tworaygroundvanilla"
+    datafile = algorithm + ".dat"
 
     # first of all open gnuplot template file
     f = open(algorithm + ".gpi", 'w')
-    f.write(points_gnuplot_template(algorithm))
+    f.write(lines_gnuplot_template_1(algorithm, datafile1=datafile))
     f.close()
 
     # open  data file
-    fdat = open(algorithm + ".dat", 'w')
+    fdat = open(datafile, 'w')
 
     output = Popen([p_path,
         "--algorithm", algorithm ],
@@ -227,14 +235,15 @@ def trg_vanilla():
 def shadowing():
 
     algorithm = "shadowing"
+    datafile = algorithm + ".dat"
 
     # first of all open gnuplot template file
     f = open(algorithm + ".gpi", 'w')
-    f.write(lines_gnuplot_template(algorithm))
+    f.write(lines_gnuplot_template_1(algorithm, datafile1=datafile))
     f.close()
 
     # open  data file
-    fdat = open(algorithm + ".dat", 'w')
+    fdat = open(datafile, 'w')
 
     output = Popen([p_path,
         "--algorithm", algorithm ],
@@ -259,14 +268,15 @@ def shadowing():
 def nakagami():
 
     algorithm = "nakagami"
+    datafile = algorithm + ".dat"
 
     # first of all open gnuplot template file
     f = open(algorithm + ".gpi", 'w')
-    f.write(lines_gnuplot_template(algorithm))
+    f.write(lines_gnuplot_template_1(algorithm, datafile1=datafile))
     f.close()
 
     # open  data file
-    fdat = open(algorithm + ".dat", 'w')
+    fdat = open(datafile, 'w')
 
     output = Popen([p_path,
         "--algorithm", algorithm ],
@@ -290,14 +300,15 @@ def nakagami():
 def log_distance():
 
     algorithm = "logdistance"
+    datafile = algorithm + ".dat"
 
     # first of all open gnuplot template file
     f = open(algorithm + ".gpi", 'w')
-    f.write(points_gnuplot_template(algorithm))
+    f.write(lines_gnuplot_template_1(algorithm, datafile1=datafile))
     f.close()
 
     # open  data file
-    fdat = open(algorithm + ".dat", 'w')
+    fdat = open(datafile, 'w')
 
     output = Popen([p_path,
         "--algorithm", algorithm ],
@@ -321,14 +332,15 @@ def log_distance():
 def three_log_distance():
 
     algorithm = "threelogdistance"
+    datafile = algorithm + ".dat"
 
     # first of all open gnuplot template file
     f = open(algorithm + ".gpi", 'w')
-    f.write(points_gnuplot_template(algorithm))
+    f.write(lines_gnuplot_template_1(algorithm, datafile1=datafile))
     f.close()
 
     # open  data file
-    fdat = open(algorithm + ".dat", 'w')
+    fdat = open(datafile, 'w')
 
     output = Popen([p_path,
         "--algorithm", algorithm ],
