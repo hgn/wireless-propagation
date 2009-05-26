@@ -35,7 +35,7 @@
 
 #define	DEFAULT_NAKAGAMI_D0_M  80
 #define	DEFAULT_NAKAGAMI_D1_M 200
-#define	DEFAULT_NAKAGAMI_USE_DIST 1 /* false */
+#define	DEFAULT_NAKAGAMI_USE_DIST 1 /* true */
 
 /* log distance values */
 #define	DEFAULT_LOG_DISTANCE_EXPONENT 3.0
@@ -359,10 +359,18 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 			{"threelogdistance3", 1, 0, 'Y'},
 			{"threelogreferencedistance", 1, 0, 'U'},
 
+			/* nakagami values */
+			{"m0", 1, 0, 'A'},
+			{"m1", 1, 0, 'S'},
+			{"m2", 1, 0, 'D'},
+			{"d0m", 1, 0, 'F'},
+			{"d1m", 1, 0, 'G'},
+			{"usedistance", 1, 0, 'H'},
+
 			{0, 0, 0, 0}
 		};
 
-		c = getopt_long(ac, av, "a:s:e:d:f:l:p:r:t:u:i:g:h:j:P:O:Q:W:E:R:T:Y:U:",
+		c = getopt_long(ac, av, "a:s:e:d:f:l:p:r:t:u:i:g:h:j:P:O:Q:W:E:R:T:Y:U:A:S:D:F:G:H:",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -454,6 +462,32 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 
 		case 'U':
 			OPTS_THREE_LOG(opts).reference_distance = strtod(optarg, NULL);
+			break;
+
+		/* nakagami values */
+		case 'A':
+			OPTS_NAKAGAMI(opts).m0 = strtod(optarg, NULL);
+			break;
+		case 'S':
+			OPTS_NAKAGAMI(opts).m1 = strtod(optarg, NULL);
+			break;
+		case 'D':
+			OPTS_NAKAGAMI(opts).m2 = strtod(optarg, NULL);
+			break;
+		case 'F':
+			OPTS_NAKAGAMI(opts).d0_m = strtod(optarg, NULL);
+			break;
+		case 'G':
+			OPTS_NAKAGAMI(opts).d1_m = strtod(optarg, NULL);
+			break;
+		case 'H':
+			if (!strcasecmp(optarg, "yes")) {
+				OPTS_NAKAGAMI(opts).use_dist = 1;
+			} else if (!strcasecmp(optarg, "no")){
+				OPTS_NAKAGAMI(opts).use_dist = 0;
+			} else {
+				die(EXIT_FAILURE, "Only yes or no allowed for nakagami \"usedistance\"");
+			}
 			break;
 
 		case '?':
@@ -701,7 +735,7 @@ calc_nakagami(const struct opts *opts, struct c_env *c_env, const double node_di
 
 	pr_1 = dbm_to_watt(pr_0);
 
-	if (!OPTS_NAKAGAMI(opts).use_dist) {
+	if (OPTS_NAKAGAMI(opts).use_dist == 0) {
 		rx_power = pr_1;
 	} else {
 		double m;
