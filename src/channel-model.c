@@ -81,17 +81,19 @@ struct opts {
 	double rx_antenna_height;
 	double tx_antenna_height;
 
-	double shadowing_pathloss_exp;
-	double shadowing_std_db;
-	double shadowing_distance;
+	struct {
+		double shadowing_pathloss_exp;
+		double shadowing_std_db;
+		double shadowing_distance;
+	} shadowing;
 
 	struct {
-	double m0;
-	double m1;
-	double m2;
-	double d0_m;
-	double d1_m;
-	double use_dist;
+		double m0;
+		double m1;
+		double m2;
+		double d0_m;
+		double d1_m;
+		double use_dist;
 	} nakagami;
 
 	struct {
@@ -116,6 +118,7 @@ struct opts {
 #define	OPTS_THREE_LOG(opts) opts->three_log_distance
 #define	OPTS_LOG_DISTANCE(opts) opts->log_distance
 #define	OPTS_NAKAGAMI(opts) opts->nakagami
+#define	OPTS_SHADOWING(opts) opts->shadowing
 
 struct c_env {
 	gsl_rng *rng;
@@ -256,9 +259,9 @@ setup_defaults(struct opts *opts)
 	opts->rx_antenna_height = DEFAULT_RX_ANTENNA_HEIGHT;
 
 	/* shadowing related values*/
-	opts->shadowing_pathloss_exp = DEFAULT_SHADOWING_PATHLOSS_EXP;
-	opts->shadowing_std_db       = DEFAULT_SHADOWING_STD_DB;
-	opts->shadowing_distance     = DEFAULT_SHADOWING_DISTANCE;
+	OPTS_SHADOWING(opts).shadowing_pathloss_exp = DEFAULT_SHADOWING_PATHLOSS_EXP;
+	OPTS_SHADOWING(opts).shadowing_std_db       = DEFAULT_SHADOWING_STD_DB;
+	OPTS_SHADOWING(opts).shadowing_distance     = DEFAULT_SHADOWING_DISTANCE;
 
 	/* nakagami setup */
 	OPTS_NAKAGAMI(opts).m0 = DEFAULT_NAKAGAMI_M0;
@@ -422,13 +425,13 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 
 		/* shadowing values */
 		case 'g':
-			opts->shadowing_pathloss_exp = strtod(optarg, NULL);
+			OPTS_SHADOWING(opts).shadowing_pathloss_exp = strtod(optarg, NULL);
 			break;
 		case 'h':
-			opts->shadowing_std_db = strtod(optarg, NULL);
+			OPTS_SHADOWING(opts).shadowing_std_db = strtod(optarg, NULL);
 			break;
 		case 'j':
-			opts->shadowing_distance = strtod(optarg, NULL);
+			OPTS_SHADOWING(opts).shadowing_distance = strtod(optarg, NULL);
 			break;
 
 		/* log distance model values */
@@ -610,14 +613,14 @@ calc_shadowing(const struct opts *opts, struct c_env *c_env, const double node_d
 							opts->system_loss,
 							node_distance);
 
-	if (node_distance > opts->shadowing_distance) {
-		avg_db = -10.0 * opts->shadowing_pathloss_exp *
-			log10(node_distance/opts->shadowing_distance);
+	if (node_distance > OPTS_SHADOWING(opts).shadowing_distance) {
+		avg_db = -10.0 * OPTS_SHADOWING(opts).shadowing_pathloss_exp *
+			log10(node_distance / OPTS_SHADOWING(opts).shadowing_distance);
 	} else {
 		avg_db = 0.0;
 	}
 
-	power_loss_db = avg_db + gsl_ran_gaussian(c_env->rng, opts->shadowing_std_db);
+	power_loss_db = avg_db + gsl_ran_gaussian(c_env->rng, OPTS_SHADOWING(opts).shadowing_std_db);
 
 	pr = rx_power * pow(10.0, (power_loss_db / 10.0));
 
