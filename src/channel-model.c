@@ -68,6 +68,11 @@ enum algo {
 	THREE_LOG_DISTANCE
 };
 
+enum modulation {
+	QAM4 = 1,
+};
+
+
 struct opts {
 	double start;
 	double end;
@@ -124,6 +129,8 @@ struct c_env {
 	gsl_rng *rng;
 	enum algo algo;
 	double (*func)(const struct opts *, struct c_env *, const double);
+	enum modulation modulation;
+	double (*modulation_ber_func)(const struct opts *, struct c_env *, const double);
 };
 
 /* al cheapo forward declarations */
@@ -134,6 +141,8 @@ static double calc_two_ray_ground(const struct opts *, struct c_env *, const dou
 static double calc_friis(const struct opts *, struct c_env *, const double);
 static double calc_log_distance(const struct opts *, struct c_env *, const double);
 static double calc_three_log_distance(const struct opts *, struct c_env *, const double);
+
+static double ber_qam4(const struct opts *, struct c_env *, const double);
 
 struct algorithms {
 	const char *name;
@@ -147,6 +156,15 @@ struct algorithms {
 	{ "friis", FRIIS, calc_friis },
 	{ "logdistance", LOG_DISTANCE, calc_log_distance },
 	{ "threelogdistance", THREE_LOG_DISTANCE, calc_three_log_distance },
+	{ NULL, 0, 0 }
+};
+
+struct modulations {
+	const char *name;
+	enum modulation modulation;
+	double (*func)(const struct opts *, struct c_env *, const double);
+} modulations[] = {
+	{ "qam4", QAM4, ber_qam4 },
 	{ NULL, 0, 0 }
 };
 
@@ -291,7 +309,6 @@ setup_defaults(struct opts *opts)
 	opts->delta = DEFAULT_DELTA;
 }
 
-
 static int
 find_algorithm(const char *arg, struct c_env *c_env)
 {
@@ -310,6 +327,23 @@ find_algorithm(const char *arg, struct c_env *c_env)
 	return 0;
 }
 
+
+static int
+find_modulation(const char *arg, struct c_env *c_env)
+{
+	const char *name;
+	int i = 0;
+
+	name = modulations[i].name;
+	for (; modulations[i].name != NULL; name = modulations[i++].name) {
+		if (!(strcasecmp(arg, modulations[i].name))) {
+			c_env->modulation_ber_func = modulations[i].func;
+			c_env->modulation          = modulations[i].modulation;
+			return 1;
+		}
+	}
+	return 0;
+}
 
 static struct opts*
 parse_opts(int ac, char **av, struct c_env *c_env)
@@ -370,10 +404,12 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 			{"d1m", 1, 0, 'G'},
 			{"usedistance", 1, 0, 'H'},
 
+			{"modulation", 1, 0, 'm'},
+
 			{0, 0, 0, 0}
 		};
 
-		c = getopt_long(ac, av, "a:s:e:d:f:l:p:r:t:u:i:g:h:j:P:O:Q:W:E:R:T:Y:U:A:S:D:F:G:H:",
+		c = getopt_long(ac, av, "a:s:e:d:f:l:p:r:t:u:i:g:h:j:P:O:Q:W:E:R:T:Y:U:A:S:D:F:G:H:m:",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -493,6 +529,17 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 			}
 			break;
 
+		/* modulation and BER specific code */
+		case 'm':
+			ret = find_modulation(optarg, c_env);
+			if (!ret) {
+				fprintf(stderr, "Modulation \"%s\" not supported!\n",
+						optarg);
+				print_usage();
+				exit(EXIT_FAILURE);
+			}
+			break;
+
 		case '?':
 			break;
 
@@ -507,6 +554,10 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 		exit(EXIT_FAILURE);
 	}
 
+	if (c_env->modulation == 0) {
+		/* no modulation given - working in SNR threshold mode */
+	}
+
 	if (opts->start < 0.0)
 		die(EXIT_FAILURE, "No valid distance given (must > 0m)");
 
@@ -514,6 +565,17 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 		die(EXIT_FAILURE, "No valid delta given (must > 0)");
 
 	return opts;
+}
+
+/* returns the Bit Error Rate for a given SNR */
+static double
+ber_qam4(const struct opts *opts, struct c_env *c_env, const double snr)
+{
+	(void) opts;
+	(void) c_env;
+	(void) snr;
+
+	return 0.0;
 }
 
 
