@@ -35,8 +35,12 @@ def lines_gnuplot_template_1(alg, y_min = -150, y_max = 20, linewidth = 4, dataf
     !rm -rf %s.eps
     """ % (alg, alg, y_min, y_max, linewidth, datafile1, alg, alg, alg, alg)
 
-def lines_gnuplot_template_2(alg, y_min = -150, y_max = 20, linewidth = 4, datafile1="/dev/null", datafile2="/dev/null"):
-    return """
+def lines_gnuplot_template_n(alg, y_min = -150, y_max = 20, linewidth = 4, datafiles=[]):
+
+    if len(datafiles) == 0:
+        raise NameError, 'No file names given for datafile'
+
+    gnuplot_str = """
     set term postscript eps enhanced color "Times" 30
     set output "%s.eps"
 
@@ -49,17 +53,24 @@ def lines_gnuplot_template_2(alg, y_min = -150, y_max = 20, linewidth = 4, dataf
     set xlabel "Node Distance [meter]"
     set ylabel "RX Power [dbm]"
 
+    for datafile in datafiles
+
+
     set yrange[%d:%d]
 
     set style line 1 linetype 1 linecolor rgb "#3e6694" lw %d
+    plot "%s" using 1:2 title "%s" with lines ls 1
+    """ % (alg, alg, y_min, y_max, linewidth, datafiles[0])
 
-    plot "%s" using 1:2 title "%s" with lines ls 1, \
-         "%s" using 1:2 title ""   with lines ls 2
+    for i in range(len(datafiles) - 1):
+        gnuplot_str += """
+         "%s" using 1:2 title "" with lines ls 1
+        """ % (alg, datafiles[i])
+
+    gnuplot_str += """
     !epstopdf --outfile=%s.pdf %s.eps
     !rm -rf %s.eps
-    """ % (alg, alg, y_min, y_max, linewidth, datafile1, alg, alg, alg, alg)
-
-
+    """ % (alg, alg, alg)
 
 
 ##########################################
@@ -293,6 +304,162 @@ def nakagami():
     p = Popen("mv " + algorithm + ".pdf latex/images", shell=True)
     sts = os.waitpid(p.pid, 0)
 
+##########################################
+##########################################
+##########################################
+def nakagami_distribution():
+
+    algorithm = "nakagami"
+    name        = "nakagami" + "_distribution"
+    gnuplotname = name + ".gpi"
+    datafile    = name + ".dat"
+    pdfname     = name + ".pdf"
+
+    gpi_src = """
+    set term postscript eps enhanced color "Times" 30
+    set output "%s.eps"
+
+    set size 2
+
+    set key spacing 1.2
+    set grid xtics ytics mytics
+
+    set title "%s Path Loss Model"
+    set xlabel "Node Distance [meter]"
+    set ylabel "RX Power [dbm]"
+
+    set yrange[-120:20]
+
+    set style line 1 linetype 2 linecolor rgb "#3e6694" lw 5
+
+    plot "%s" using 1:2 title "%s" with dots ls 1
+    !epstopdf --outfile=%s.pdf %s.eps
+    !rm -rf %s.eps
+    """ %(name, "Nakagami Dispersion", datafile, "Nakagami Dispersion", name, name, name)
+
+    # first of all open gnuplot template file
+    f = open(gnuplotname, 'w')
+    f.write(gpi_src)
+    f.close()
+
+    # open  data file
+    fdat = open(datafile, 'a')
+
+    for i in range(30):
+        output = Popen([p_path,
+            "--algorithm", algorithm ],
+            stdout=PIPE).communicate()[0]
+        fdat.write("%s\n" % (output))
+
+    fdat.close()
+
+    # execute gnuplot
+    p = Popen("gnuplot" + " " + gnuplotname, shell=True)
+    sts = os.waitpid(p.pid, 0)
+
+    # move image in tex directory
+    p = Popen("mv " + pdfname + " latex/images", shell=True)
+    sts = os.waitpid(p.pid, 0)
+
+##########################################
+##########################################
+##########################################
+def nakagami_variances():
+
+    algorithm = "nakagami"
+    name        = "nakagami" + "_m0_variances"
+    gnuplotname = name + ".gpi"
+    datafile1  = name + "1.dat"
+    datafile2  = name + "2.dat"
+    datafile3  = name + "3.dat"
+    datafile4  = name + "4.dat"
+    datafile5  = name + "5.dat"
+    pdfname     = name + ".pdf"
+
+    gpi_src = """
+    set term postscript eps enhanced color "Times" 25
+    set output "%s.eps"
+
+    set size 2
+
+    set key spacing 1.2
+    set grid xtics ytics mytics
+
+    set title "%s Path Loss Model"
+    set xlabel "Node Distance [meter]"
+    set ylabel "RX Power [dbm]"
+
+    set yrange[-100:0]
+    set xrange[0:200]
+
+    set style line 1 linetype 1 linecolor rgb "#3e6694" lw 3
+    set style line 2 linetype 1 linecolor rgb "#ff0000" lw 3
+    set style line 3 linetype 1 linecolor rgb "#00ff00" lw 3
+    set style line 4 linetype 1 linecolor rgb "#00ffff" lw 3
+    set style line 5 linetype 1 linecolor rgb "#0000ff" lw 3
+
+    plot "%s" using 1:2 title "m0 = 0.25" with lines ls 1, \
+         "%s" using 1:2 title "m0 = 1.0" with lines ls 2, \
+         "%s" using 1:2 title "m0 = 1.5 (default)" with lines ls 3, \
+         "%s" using 1:2 title "m0 = 2.0" with lines ls 4, \
+         "%s" using 1:2 title "m0 = 5.0" with lines ls 5
+    !epstopdf --outfile=%s.pdf %s.eps
+    !rm -rf %s.eps
+    """ %(name, "Nakagami M0 Effects (d0m = 80)", datafile1, datafile2, datafile3, datafile4, datafile5, name, name, name)
+
+    # first of all open gnuplot template file
+    f = open(gnuplotname, 'w')
+    f.write(gpi_src)
+    f.close()
+
+    # open  data file
+    fdat = open(datafile1, 'w')
+    output = Popen([p_path,
+        "--m0", "0.25",
+        "--algorithm", algorithm ],
+        stdout=PIPE).communicate()[0]
+    fdat.write("%s\n" % (output))
+    fdat.close()
+
+    fdat = open(datafile2, 'w')
+    output = Popen([p_path,
+        "--m0", "1.0",
+        "--algorithm", algorithm ],
+        stdout=PIPE).communicate()[0]
+    fdat.write("%s\n" % (output))
+    fdat.close()
+
+    fdat = open(datafile3, 'w')
+    output = Popen([p_path,
+        "--m0", "1.5",
+        "--algorithm", algorithm ],
+        stdout=PIPE).communicate()[0]
+    fdat.write("%s\n" % (output))
+    fdat.close()
+
+    fdat = open(datafile4, 'w')
+    output = Popen([p_path,
+        "--m0", "2.0",
+        "--algorithm", algorithm ],
+        stdout=PIPE).communicate()[0]
+    fdat.write("%s\n" % (output))
+    fdat.close()
+
+    fdat = open(datafile5, 'w')
+    output = Popen([p_path,
+        "--m0", "5.0",
+        "--algorithm", algorithm ],
+        stdout=PIPE).communicate()[0]
+    fdat.write("%s\n" % (output))
+    fdat.close()
+
+    # execute gnuplot
+    p = Popen("gnuplot" + " " + gnuplotname, shell=True)
+    sts = os.waitpid(p.pid, 0)
+
+    # move image in tex directory
+    p = Popen("mv " + pdfname + " latex/images", shell=True)
+    sts = os.waitpid(p.pid, 0)
 
 ##########################################
 ##########################################
@@ -370,3 +537,5 @@ shadowing()
 nakagami()
 log_distance()
 three_log_distance()
+nakagami_distribution()
+nakagami_variances()
