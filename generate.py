@@ -4,6 +4,7 @@
 import math
 import os
 from subprocess import *
+import tempfile
 
 p_path = "./src/channel-model"
 
@@ -369,12 +370,12 @@ def nakagami_variances():
     algorithm = "nakagami"
     name        = "nakagami" + "_m0_variances"
     gnuplotname = name + ".gpi"
-    datafile1  = name + "1.dat"
-    datafile2  = name + "2.dat"
-    datafile3  = name + "3.dat"
-    datafile4  = name + "4.dat"
-    datafile5  = name + "5.dat"
-    pdfname     = name + ".pdf"
+    datafile1  = tempfile.NamedTemporaryFile()
+    datafile2  = tempfile.NamedTemporaryFile()
+    datafile3  = tempfile.NamedTemporaryFile()
+    datafile4  = tempfile.NamedTemporaryFile()
+    datafile5  = tempfile.NamedTemporaryFile()
+    pdfname    = name + ".pdf"
 
     gpi_src = """
     set term postscript eps enhanced color "Times" 25
@@ -405,7 +406,7 @@ def nakagami_variances():
          "%s" using 1:2 title "m0 = 5.0" with lines ls 5
     !epstopdf --outfile=%s.pdf %s.eps
     !rm -rf %s.eps
-    """ %(name, "Nakagami M0 Effects (d0m = 80)", datafile1, datafile2, datafile3, datafile4, datafile5, name, name, name)
+    """ %(name, "Nakagami M0 Effects (d0m = 80)", datafile1.name, datafile2.name, datafile3.name, datafile4.name, datafile5.name, name, name, name)
 
     # first of all open gnuplot template file
     f = open(gnuplotname, 'w')
@@ -413,45 +414,40 @@ def nakagami_variances():
     f.close()
 
     # open  data file
-    fdat = open(datafile1, 'w')
+    fdat = datafile1
     output = Popen([p_path,
         "--m0", "0.25",
         "--algorithm", algorithm ],
         stdout=PIPE).communicate()[0]
     fdat.write("%s\n" % (output))
-    fdat.close()
 
-    fdat = open(datafile2, 'w')
+    fdat = datafile2
     output = Popen([p_path,
         "--m0", "1.0",
         "--algorithm", algorithm ],
         stdout=PIPE).communicate()[0]
     fdat.write("%s\n" % (output))
-    fdat.close()
 
-    fdat = open(datafile3, 'w')
+    fdat = datafile3
     output = Popen([p_path,
         "--m0", "1.5",
         "--algorithm", algorithm ],
         stdout=PIPE).communicate()[0]
     fdat.write("%s\n" % (output))
-    fdat.close()
 
-    fdat = open(datafile4, 'w')
+    fdat = datafile4
     output = Popen([p_path,
         "--m0", "2.0",
         "--algorithm", algorithm ],
         stdout=PIPE).communicate()[0]
     fdat.write("%s\n" % (output))
-    fdat.close()
 
-    fdat = open(datafile5, 'w')
+    fdat = datafile5
     output = Popen([p_path,
         "--m0", "5.0",
         "--algorithm", algorithm ],
         stdout=PIPE).communicate()[0]
     fdat.write("%s\n" % (output))
-    fdat.close()
 
     # execute gnuplot
     p = Popen("gnuplot" + " " + gnuplotname, shell=True)
@@ -460,6 +456,12 @@ def nakagami_variances():
     # move image in tex directory
     p = Popen("mv " + pdfname + " latex/images", shell=True)
     sts = os.waitpid(p.pid, 0)
+
+    datafile1.close()
+    datafile2.close()
+    datafile3.close()
+    datafile4.close()
+    datafile5.close()
 
 ##########################################
 ##########################################
