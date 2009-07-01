@@ -801,7 +801,7 @@ calc_nakagami(const struct opts *opts, struct c_env *c_env, const double node_di
 	pr_1 = dbm_to_watt(pr_0);
 
 	if (OPTS_NAKAGAMI(opts).use_dist == 0) {
-		rx_power = pr_1;
+		return watt_to_dbm(pr_1);
 	} else {
 		double m;
 

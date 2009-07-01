@@ -365,7 +365,7 @@ def nakagami_distribution():
 ##########################################
 ##########################################
 ##########################################
-def nakagami_variances():
+def nakagami_m0_variances():
 
     algorithm = "nakagami"
     name        = "nakagami" + "_m0_variances"
@@ -406,7 +406,9 @@ def nakagami_variances():
          "%s" using 1:2 title "m0 = 5.0" with lines ls 5
     !epstopdf --outfile=%s.pdf %s.eps
     !rm -rf %s.eps
-    """ %(name, "Nakagami M0 Effects (d0m = 80)", datafile1.name, datafile2.name, datafile3.name, datafile4.name, datafile5.name, name, name, name)
+    """ %(name, "Nakagami M0 Effects (d0m = 80)",
+            datafile1.name, datafile2.name, datafile3.name, datafile4.name, datafile5.name,
+            name, name, name)
 
     # first of all open gnuplot template file
     f = open(gnuplotname, 'w')
@@ -462,6 +464,122 @@ def nakagami_variances():
     datafile3.close()
     datafile4.close()
     datafile5.close()
+
+##########################################
+##########################################
+##########################################
+def nakagami_m0_variance_distribution():
+
+    algorithm   = "nakagami"
+    name        = "nakagami" + "_m0_variance_distribution"
+    iterations  = 100
+    delta       = 0.2
+    gnuplotname = name + ".gpi"
+    datafile1   = tempfile.NamedTemporaryFile(mode = 'a')
+    datafile2   = tempfile.NamedTemporaryFile(mode = 'a')
+    datafile3   = tempfile.NamedTemporaryFile(mode = 'a')
+    datafile4   = tempfile.NamedTemporaryFile(mode = 'a')
+    datafile5   = tempfile.NamedTemporaryFile(mode = 'a')
+    pdfname     = name + ".pdf"
+
+    gpi_src = """
+    set term postscript eps enhanced color "Times" 30
+    set output "%s.eps"
+
+    set size 2
+
+    set key spacing 1.2
+    set grid xtics ytics mytics
+
+    set title "%s Path Loss Model"
+    set xlabel "Node Distance [meter]"
+    set ylabel "RX Power [dbm]"
+
+    set yrange[-100:0]
+    set xrange[0:80]
+
+    set style line 1 linetype 3 linecolor rgb "#3e6694" lw 6
+    set style line 2 linetype 3 linecolor rgb "#ff0000" lw 6
+    set style line 3 linetype 3 linecolor rgb "#00ff00" lw 6
+    set style line 4 linetype 3 linecolor rgb "#00ffff" lw 6
+    set style line 5 linetype 3 linecolor rgb "#0000ff" lw 6
+
+    plot "%s" using 1:2 title "m0 = 0.25" with dots ls 1, \
+            "%s" using 1:2 title "m0 = 1.0" with dots ls 2, \
+            "%s" using 1:2 title "m0 = 1.5 (default)" with dots ls 3, \
+            "%s" using 1:2 title "m0 = 2.0" with dots ls 4, \
+            "%s" using 1:2 title "m0 = 5.0" with dots ls 5
+    !epstopdf --outfile=%s.pdf %s.eps
+    !rm -rf %s.eps
+    """ %(name, "Nakagami M0 Effects (d0m = 80)",
+            datafile1.name, datafile2.name, datafile3.name, datafile4.name, datafile5.name,
+            name, name, name)
+
+    # first of all open gnuplot template file
+    f = open(gnuplotname, 'w')
+    f.write(gpi_src)
+    f.close()
+
+    # open  data file
+    fdat = datafile1
+    for i in range(iterations):
+        output = Popen([p_path,
+            "--delta", str(delta),
+            "--m0", "0.25",
+            "--algorithm", algorithm ],
+            stdout=PIPE).communicate()[0]
+        fdat.write("%s\n" % (output))
+
+    fdat = datafile2
+    for i in range(iterations):
+        output = Popen([p_path,
+            "--delta", str(delta),
+            "--m0", "1.0",
+            "--algorithm", algorithm ],
+            stdout=PIPE).communicate()[0]
+        fdat.write("%s\n" % (output))
+
+    fdat = datafile3
+    for i in range(iterations):
+        output = Popen([p_path,
+            "--delta", str(delta),
+            "--m0", "1.5",
+            "--algorithm", algorithm ],
+            stdout=PIPE).communicate()[0]
+        fdat.write("%s\n" % (output))
+
+    fdat = datafile4
+    for i in range(iterations):
+        output = Popen([p_path,
+            "--delta", str(delta),
+            "--m0", "2.0",
+            "--algorithm", algorithm ],
+            stdout=PIPE).communicate()[0]
+        fdat.write("%s\n" % (output))
+
+    fdat = datafile5
+    for i in range(iterations):
+        output = Popen([p_path,
+            "--delta", str(delta),
+            "--m0", "5.0",
+            "--algorithm", algorithm ],
+            stdout=PIPE).communicate()[0]
+        fdat.write("%s\n" % (output))
+
+    # execute gnuplot
+    p = Popen("gnuplot" + " " + gnuplotname, shell=True)
+    sts = os.waitpid(p.pid, 0)
+
+    # move image in tex directory
+    p = Popen("mv " + pdfname + " latex/images", shell=True)
+    sts = os.waitpid(p.pid, 0)
+
+    datafile1.close()
+    datafile2.close()
+    datafile3.close()
+    datafile4.close()
+    datafile5.close()
+
 
 ##########################################
 ##########################################
@@ -540,4 +658,5 @@ nakagami()
 log_distance()
 three_log_distance()
 nakagami_distribution()
-nakagami_variances()
+nakagami_m0_variances()
+nakagami_m0_variance_distribution()
