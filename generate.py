@@ -308,11 +308,13 @@ def nakagami():
 ##########################################
 ##########################################
 ##########################################
-def nakagami_distribution():
+def nakagami_m0_distribution(m_val = 0.15):
 
     algorithm = "nakagami"
-    name        = "nakagami" + "_distribution"
+    name        = "nakagami" + str(m_val) + "_distribution"
     gnuplotname = name + ".gpi"
+    delta       = 0.52
+    iterations  = 60
     datafile    = name + ".dat"
     pdfname     = name + ".pdf"
 
@@ -336,7 +338,7 @@ def nakagami_distribution():
     plot "%s" using 1:2 title "%s" with dots ls 1
     !epstopdf --outfile=%s.pdf %s.eps
     !rm -rf %s.eps
-    """ %(name, "Nakagami Dispersion", datafile, "Nakagami Dispersion", name, name, name)
+    """ %(name, "Nakagami Distribution", datafile, "Nakagami Dispersion (m = " + str(m_val) + ")", name, name, name)
 
     # first of all open gnuplot template file
     f = open(gnuplotname, 'w')
@@ -346,8 +348,12 @@ def nakagami_distribution():
     # open  data file
     fdat = open(datafile, 'a')
 
-    for i in range(30):
+    for i in range(iterations):
         output = Popen([p_path,
+            "--delta", str(delta),
+            "--m0", str(m_val),
+            "--m1", str(m_val),
+            "--m2", str(m_val),
             "--algorithm", algorithm ],
             stdout=PIPE).communicate()[0]
         fdat.write("%s\n" % (output))
@@ -580,6 +586,62 @@ def nakagami_m0_variance_distribution():
     datafile4.close()
     datafile5.close()
 
+##########################################
+##########################################
+##########################################
+def nakagami_distribution():
+
+    algorithm = "nakagami"
+    name        = "nakagami" + "_distribution"
+    gnuplotname = name + ".gpi"
+    datafile    = name + ".dat"
+    pdfname     = name + ".pdf"
+
+    gpi_src = """
+    set term postscript eps enhanced color "Times" 30
+    set output "%s.eps"
+
+    set size 2
+
+    set key spacing 1.2
+    set grid xtics ytics mytics
+
+    set title "%s Path Loss Model"
+    set xlabel "Node Distance [meter]"
+    set ylabel "RX Power [dbm]"
+
+    set yrange[-120:20]
+
+    set style line 1 linetype 2 linecolor rgb "#3e6694" lw 5
+
+    plot "%s" using 1:2 title "%s" with dots ls 1
+    !epstopdf --outfile=%s.pdf %s.eps
+    !rm -rf %s.eps
+    """ %(name, "Nakagami Dispersion", datafile, "Nakagami Dispersion", name, name, name)
+
+    # first of all open gnuplot template file
+    f = open(gnuplotname, 'w')
+    f.write(gpi_src)
+    f.close()
+
+    # open  data file
+    fdat = open(datafile, 'a')
+
+    for i in range(30):
+        output = Popen([p_path,
+            "--algorithm", algorithm ],
+            stdout=PIPE).communicate()[0]
+        fdat.write("%s\n" % (output))
+
+    fdat.close()
+
+    # execute gnuplot
+    p = Popen("gnuplot" + " " + gnuplotname, shell=True)
+    sts = os.waitpid(p.pid, 0)
+
+    # move image in tex directory
+    p = Popen("mv " + pdfname + " latex/images", shell=True)
+    sts = os.waitpid(p.pid, 0)
 
 ##########################################
 ##########################################
@@ -660,3 +722,9 @@ three_log_distance()
 nakagami_distribution()
 nakagami_m0_variances()
 nakagami_m0_variance_distribution()
+nakagami_m0_distribution(0.15)
+nakagami_m0_distribution(0.25)
+nakagami_m0_distribution(1.0)
+nakagami_m0_distribution(1.5)
+nakagami_m0_distribution(2.0)
+nakagami_m0_distribution(5.0)

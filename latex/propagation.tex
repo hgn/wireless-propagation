@@ -45,6 +45,18 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{slide}
+\slidetitle{Agenda}{Agenda}
+\bi
+	\item Question: For a given distance between two Wireless Stations
+	      how to determine the propability if a transmitted packet is
+		  receptable?\\
+		  Or in other words: how to simulate the physical radio channel?
+\ei
+\end{slide}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
 \slidetitle{Theoretical Background}{Theoretical Background}
 \bi
 	\item A Wireless channel is unsteady and lossy
@@ -61,6 +73,72 @@
 \ei
 \end{slide}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+\slidetitle{Fresnel Zone}{Fresnel Zone}
+\begin{picture}(0,0)
+\put(100,-500){\includegraphics[scale=0.7]{images/fresnel_zone.png}}
+\end{picture}
+
+\bi
+	\item How to find the right place for a radio equipment?
+	\item In order for radio waves emitted from the transmitter
+	      to reach the receiver without attenuation of power, a
+		  certain amount of space is required
+	\item The space required is a spheroid with its center along the
+		  shortest distance between antennas, and this is called the Fresnel zone
+\ei
+\end{slide}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+\slidetitle{Fresnel Zone}{Fresnel Zone}
+\bi
+	\item The 1st Fresnel (pronounced Fray-nell) zone is a spheroid
+		  space formed within the trajectory of the path when the path difference
+		  when radio wave energy reaches the receiver by the shortest distance, and
+		  when it gets there by another route, is within λ/2. In this case, λ is the
+		  wave length of the radio wave (wave length = speed of light / frequency)
+		  which at 400 MHz is 0.75 m.
+	\item if there are no obstacles in the space forming 60\%
+	      of this distance, propagation characteristics are said to be
+		  the same as in free space
+	\item ensure "line of sight" between the transceivers  - line of sight for
+		  radio wave betrifft die frezel zone!
+	\item if a Fresnel zone is not established, multipath interference will occur
+	\item The Frezelzone is Frequenzabhaengig: >> F -> <b
+	\item r = 17.31 * sqrt(N(d1*d2)/(f*d))
+	\item r = 17.31 sqrt(1 * (1000 * 1000) / (2437 * 2000))
+	\item r = 7.84 meters
+\ei
+\end{slide}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+\slidetitle{Common dbM/Watt Values}{Common dbM/Watt Values\footnote{Source: WP}}
+\bi
+	\item 80 dBm	100 kW	Typical transmission power of FM radio station with 50 km range
+	\item 60 dBm	1 kW = 1000 W	Typical combined radiated RF power of microwave oven elements
+	\item 33 dBm	2 W		Maximum output from a UMTS/3G mobile phone (Power class 1 mobiles)
+	\item 30 dBm	1 W = 1000 mW	Typical RF leakage from a microwave oven
+	\item 20 dBm	100 mW	Bluetooth Class 1 radio, 100 m range
+	\item 15 dBm	32 mW	Typical WiFi transmission power in laptops
+	\item 4 dBm		2.5 mW	Bluetooth Class 2 radio, 10 m range
+	\item 0 dBm		1.0 mW = 1000 $mu$W	Bluetooth standard (Class 3) radio, 1 m range
+	\item -10 dBm	100 $mu$W	Typical maximum received signal power (-10 to -30 dBm) of wireless network
+	\item -70 dBm	100 pW	Typical range (-60 to -80 dBm) of wireless (802.11x) received signal power over a network
+	\item -127.5 dBm	0.178 fW = 178 aW	Typical received signal power from a GPS satellite
+	\item -174 dBm	0.004 aW = 4 zW		Thermal noise floor for 1 Hz bandwidth at room temperature (20 C)
+\ei
+\end{slide}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+\slidetitle{}{}
+\bi
+	\item 
+\ei
+\end{slide}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{slide}
@@ -170,13 +248,136 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{slide}
-		\begin{picture}(0,0)
-		\put(100,-400){\includegraphics[scale=0.7]{images/threelogdistance.pdf}}
-		\end{picture}
+\begin{picture}(0,0)
+\put(100,-400){\includegraphics[scale=0.7]{images/threelogdistance.pdf}}
+\end{picture}
 \slidetitle{Three Log Distance Model}{Three Log Distance Model}
 \end{slide}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+\slidetitle{TX Power to SNR}{TX Power to SNR}
+\bi
+	\item Signal-to-Noise Ratio (SNR or S/N)
+	\item $SNR = \frac{P_{signal}}{P_{noise}}$
+	\item Noise:
+	\bi
+		\item Boltzmann constant * Bandwidth * Receiver Noise * Implementation Loss
+		\item Boltzmann constant ($k_B$): $3.91^{-21}$ (B * Temp in Kelvin)
+		\item Bandwidth: $20^6$ Hz
+		\item Receiver Noise: 15.8 W (~12 dB)
+		\item Implementation Loss: 1.58 W (2 dB)
+	\ei
+	\item Noise: $1.99^{-12}$ Watt = $-87 dBm$
+	\item Example:
+	\bi
+		\item Signal: -60 dBm
+		\item Noise: -87 dBm
+		\item SNR: -27 dB
+	\ei
+\ei
+\end{slide}
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+\slidetitle{Symbol Error Rate}{Symbol Error Rates}
+\bi
+	\item Symbol Error Rate
+	\item common digital modulation schemes:
+	\bi
+		\item BPSK (2 Symbols)
+		\item QPSK (4 Symbols)
+		\item 8PSK (8 Symbols)
+		\item QAM (16, 32, 64 Symbols)
+	\ei
+\ei
+\end{slide}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+\slidetitle{Bit Error Rate}{Bit Error Rate}
+\begin{picture}(0,0)
+\put(100,-400){\includegraphics[scale=.7]{images/formel.png}}
+\end{picture}
+\begin{picture}(0,0)
+\put(0,-200){\includegraphics[scale=.7]{images/srr.png}}
+\end{picture}
+\bi
+	\item Symbol Error Rate vs. Es/No
+	\item Symbol Error Rate $\rightarrow$ Bit Error Rate
+	\item $\frac{P_{S,MQAM}}{Bits/Symbol}$
+\ei
+\end{slide}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+\slidetitle{The End}{The End}
+\bi
+	\item Questions?
+\ei
+\end{slide}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+\slidetitle{SINR and IPW2200}{SINR and IPW2200}
+\bi
+	\item Signal-To-Noise Ratio (aka SNR and S/R)
+	\item snr(dB) = signal level(dBm) - average noise level(dBm)
+	\item Ratio of a signal power to the noise power corrupting the signal
+	\item To receive a useful information the signal must clearly be higher then the noise
+	\item Sidenote IPW2200 driver and \verb+/proc/net/wireless+
+	\bi
+		\item \verb+iwconfig eth1+ $\rightarrow$ Link Quality=69/100  Signal level=-55 dBm  Noise level=-82 dBm
+		\item Noise: initial set to -85 dBm
+		\item Every new packet updates the noise level (and average it with the previous one)
+		\item \verb+priv->exp_avg_noise+
+		\item RSSI: received signal strength indication
+		\item RSSI: a measurement of the power present in a received radio signal
+		\item 0 to 255
+		\item RSSI is acquired during the preamble stage of receiving an 802.11 frame
+		\item RSSI is stored on the RX descriptor (stats.rssi) and is measured by baseband and PHY for each individual packet
+		\item see \verb+drivers/net/wireless/ipw2x00/ipw2200.c:ipw_rx()+
+	\ei
+\ei
+\end{slide}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+\slidetitle{Some Background on Antennas}{Some Background on Antennas}
+\begin{picture}(0,0)
+\put(50,-200){\includegraphics[scale=0.25]{images/polar_pattern_directional.png}}
+\end{picture}
+\begin{picture}(0,0)
+\put(50,-450){\includegraphics[scale=0.25]{images/polar_pattern_omnidirectional.png}}
+\end{picture}
+\bi
+	\item Basic types
+	\bi
+		\item Omnidirectional
+		\item Semi-directional
+		\item Directional
+	\ei
+	\item Omnidirectional
+	\bi
+		\item Omnidirectional antennas radiate energy equally in  all directions around the antenna's vertical axis
+		\item Most common for WLAN: dipole antenna
+	\ei
+	\item Semi-Directional
+	\bi
+		\item Patch
+		\item Panel
+		\item Yagi
+		\item Common examples: TV antennas or Cellular repeaters antennas
+	\ei
+	\item Highly Directional
+	\bi
+		\item Parabolic dish
+		\item Grid antenna
+	\ei
+\ei
+\end{slide}
 
 \end{document}
 
