@@ -14,7 +14,7 @@
 \title{On the Validation of Radio Propagation Models}
 
 \setbackground{background.png}
-\subtitle{Network Simulator driven Propagation Behavior}
+\subtitle{Analytical validation of Network Simulator used\\Propagation and Bit Error Rates Models}
 
 \name{Hagen Paul Pfeifer}
 \footerline{Radio Propagation Models}
@@ -43,100 +43,52 @@
 \ei
 \end{slide}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\begin{slide}
-\slidetitle{Agenda}{Agenda}
-\bi
-	\item Question: For a given distance between two Wireless Stations
-	      how to determine the propability if a transmitted packet is
-		  receptable?\\
-		  Or in other words: how to simulate the physical radio channel?
-\ei
-\end{slide}
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{slide}
-\slidetitle{Theoretical Background}{Theoretical Background}
+\slidetitle{Introduction}{Introduction}
+\begin{picture}(0,0)
+\put(100,-520){\includegraphics[scale=0.5]{images/hong-kong.jpg}}
+\end{picture}
 \bi
 	\item A Wireless channel is unsteady and lossy
-
 	\item Wireless network simulators requires a model of this characteristic
-
-	\item Three parameter are most relevant:
-
+	\item Most relevant parameters for wave propagation:
 	\be
 		\item Attenuation
 		\item Slow Fading (shadowing)
 		\item Fast Fading (multipath scattering)
 	\ee
+	\item For the Symbol/Bit Error Rate (BER) the coding scheme is also of interest
 \ei
 \end{slide}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{slide}
 \slidetitle{Fresnel Zone}{Fresnel Zone}
-\begin{picture}(0,0)
-\put(100,-500){\includegraphics[scale=0.7]{images/fresnel_zone.png}}
-\end{picture}
-
-\bi
-	\item How to find the right place for a radio equipment?
-	\item In order for radio waves emitted from the transmitter
-	      to reach the receiver without attenuation of power, a
-		  certain amount of space is required
-	\item The space required is a spheroid with its center along the
-		  shortest distance between antennas, and this is called the Fresnel zone
-\ei
-\end{slide}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\begin{slide}
-\slidetitle{Fresnel Zone}{Fresnel Zone}
+		\begin{picture}(0,0)
+		\put(100,-450){\includegraphics[scale=0.4]{images/fresnel.png}}
+		\end{picture}
 \bi
 	\item The 1st Fresnel (pronounced Fray-nell) zone is a spheroid
-		  space formed within the trajectory of the path when the path difference
-		  when radio wave energy reaches the receiver by the shortest distance, and
-		  when it gets there by another route, is within λ/2. In this case, λ is the
-		  wave length of the radio wave (wave length = speed of light / frequency)
-		  which at 400 MHz is 0.75 m.
-	\item if there are no obstacles in the space forming 60\%
+	      with its center along both shortest distance between antennas.
+	\item If there are no obstacles in the space forming 60\%
 	      of this distance, propagation characteristics are said to be
 		  the same as in free space
-	\item ensure "line of sight" between the transceivers  - line of sight for
-		  radio wave betrifft die frezel zone!
-	\item if a Fresnel zone is not established, multipath interference will occur
-	\item The Frezelzone is Frequenzabhaengig: >> F -> <b
-	\item r = 17.31 * sqrt(N(d1*d2)/(f*d))
-	\item r = 17.31 sqrt(1 * (1000 * 1000) / (2437 * 2000))
-	\item r = 7.84 meters
+	\item Ensure line of sight between the transceivers
+	\item If a Fresnel zone is not established, multipath interference will occur
+	\item The Fresnelzone depends on the frequency: $>F \rightarrow{} <b$
+	\item \begin{math} F_n = \sqrt{\frac{n \lambda d_1 d_2}{d_1 + d_2}} \end{math},
+	      \begin{math} \lambda = \frac{v}{f}\end{math}
 \ei
 \end{slide}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{slide}
-\slidetitle{Common dbM/Watt Values}{Common dbM/Watt Values\footnote{Source: WP}}
+\slidetitle{Attenuation}{Attenuation}
 \bi
-	\item 80 dBm	100 kW	Typical transmission power of FM radio station with 50 km range
-	\item 60 dBm	1 kW = 1000 W	Typical combined radiated RF power of microwave oven elements
-	\item 33 dBm	2 W		Maximum output from a UMTS/3G mobile phone (Power class 1 mobiles)
-	\item 30 dBm	1 W = 1000 mW	Typical RF leakage from a microwave oven
-	\item 20 dBm	100 mW	Bluetooth Class 1 radio, 100 m range
-	\item 15 dBm	32 mW	Typical WiFi transmission power in laptops
-	\item 4 dBm		2.5 mW	Bluetooth Class 2 radio, 10 m range
-	\item 0 dBm		1.0 mW = 1000 $mu$W	Bluetooth standard (Class 3) radio, 1 m range
-	\item -10 dBm	100 $mu$W	Typical maximum received signal power (-10 to -30 dBm) of wireless network
-	\item -70 dBm	100 pW	Typical range (-60 to -80 dBm) of wireless (802.11x) received signal power over a network
-	\item -127.5 dBm	0.178 fW = 178 aW	Typical received signal power from a GPS satellite
-	\item -174 dBm	0.004 aW = 4 zW		Thermal noise floor for 1 Hz bandwidth at room temperature (20 C)
-\ei
-\end{slide}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\begin{slide}
-\slidetitle{}{}
-\bi
-	\item 
+	\item So how to calculate the attenuation of a channel?
+	\item How to map slow- and fast fading conditions?
 \ei
 \end{slide}
 
@@ -144,20 +96,24 @@
 \begin{slide}
 \slidetitle{Friis}{Friis}
 \bi
-	\item Formular:\\\vspace{1cm}
+	\item Friis is a transmission equation gives the power received by one antenna
+	      under idealized conditions.
+	\item Formula:\\\vspace{1cm}
 	\begin{large}
 	\begin{math}
 	\frac{P_r}{P_t} = G_t G_r (\frac{\lambda}{4 \pi R} )^2
 	\end{math}\\\vspace{1cm}
 	\end{large}
 	\begin{small}
-	$P_r$ Reveiving power (dBm)\\
+	$P_r$ Receiving power (dBm)\\
 	$P_t$ Transmitter power (dBm)\\
 	$G_t$ Antenna Gain Transmitter (dBi/dBd)\\
 	$G_r$ Antenna Gain Receiver (dBi/dBd)\\
 	$\lambda$ Wavelength (meter, \dots)\\
 	$R$ Distance between the nodes (meter, \dots)\\
 	\end{small}
+	\item But: ideal conditions are never achieved\footnote{one exception
+	      is satellite communications when there is negligible atmospheric absorption}
 \ei
 \end{slide}
 
@@ -178,16 +134,29 @@
 			\subfigure[\tiny{Frequency: 5.0 GHz (802.11)}]{\includegraphics[scale=0.45]{images/friis5000.pdf}}
 			\end{figure}
 \bi
-	\item The higher the frquency, the higher the loss.
+	\item The higher the frequency, the higher the loss.
 \ei
 \end{slide}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{slide}
-		\begin{picture}(0,0)
-		\put(100,-400){\includegraphics[scale=0.7]{images/tworayground.pdf}}
-		\end{picture}
-\slidetitle{Two Ray Ground (vanilla)}{Two Ray Ground (vanilla)}
+\begin{picture}(0,0)
+\put(100,-400){\includegraphics[scale=0.7]{images/two-ray-ground.png}}
+\end{picture}
+\slidetitle{Two Ray Ground}{Two Ray Ground}
+\bi
+	\item Friis at long distance tends to accurate prediction
+	\item The single line-of-sight path is seldom the only means of propagation
+	\item The two-ray ground reflection model considers both
+	      the direct path and a ground reflection path
+	\item \begin{math} P_r(d) = \frac{P_t G_t G_r h_t^2 h_r^2}{d^4 L} \end{math}
+	\bi
+		\item $L$: 1
+	\ei
+	\item Increased power loss compared to Free Space Model
+	\item No good results for small distance $\rightarrow$ use Free Space Model
+	      for near distances
+\ei
 \end{slide}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -195,8 +164,61 @@
 		\begin{picture}(0,0)
 		\put(100,-400){\includegraphics[scale=0.7]{images/tworaygroundvanilla.pdf}}
 		\end{picture}
+\slidetitle{Two Ray Ground (vanilla)}{Two Ray Ground (vanilla)}
+\end{slide}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+		\begin{picture}(0,0)
+		\put(100,-400){\includegraphics[scale=0.7]{images/tworayground.pdf}}
+		\end{picture}
 \slidetitle{Two Ray Ground}{Two Ray Ground}
 \end{slide}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+		\begin{picture}(0,0)
+		\put(100,-400){\includegraphics[scale=0.7]{images/logdistance.pdf}}
+		\end{picture}
+\slidetitle{Log Distance Model}{Log Distance Model}
+\end{slide}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+\begin{picture}(0,0)
+\put(100,-400){\includegraphics[scale=0.7]{images/threelogdistance.pdf}}
+\end{picture}
+\slidetitle{Three Log Distance Model}{Three Log Distance Model}
+\end{slide}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+\slidetitle{Fading}{Fading}
+		\begin{picture}(0,0)
+		\put(350,-190){\includegraphics[scale=1.]{images/urban.png}}
+		\end{picture}
+\bi
+	\item Fading is deviation of the attenuation
+	\item Reasons:
+	\bi
+		\item Shadowing from obstacles
+		\item Multipath propagation
+	\ei
+	\item Slow Fading
+	\bi
+		\item Roughly constant amplitude and phase change over time
+		\item Hills, buildings, \dots
+		\item Often modeled using a log-normal distribution
+	\ei
+	\item Fast fading
+	\bi
+		\item Amplitude and phase change varies considerably
+		\item Multiple reflections
+	\ei
+	\item Modeled as a random process
+\ei
+\end{slide}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{slide}
@@ -240,25 +262,10 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{slide}
-		\begin{picture}(0,0)
-		\put(100,-400){\includegraphics[scale=0.7]{images/logdistance.pdf}}
-		\end{picture}
-\slidetitle{Log Distance Model}{Log Distance Model}
-\end{slide}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\begin{slide}
-\begin{picture}(0,0)
-\put(100,-400){\includegraphics[scale=0.7]{images/threelogdistance.pdf}}
-\end{picture}
-\slidetitle{Three Log Distance Model}{Three Log Distance Model}
-\end{slide}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\begin{slide}
-\slidetitle{TX Power to SNR}{TX Power to SNR}
+\slidetitle{RX Power to SNR}{RX Power to SNR (1/2)}
 \bi
 	\item Signal-to-Noise Ratio (SNR or S/N)
+	\item Ratio of a signal power to the noise power corrupting the signal
 	\item $SNR = \frac{P_{signal}}{P_{noise}}$
 	\item Noise:
 	\bi
@@ -268,6 +275,13 @@
 		\item Receiver Noise: 15.8 W (~12 dB)
 		\item Implementation Loss: 1.58 W (2 dB)
 	\ei
+\ei
+\end{slide}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+\slidetitle{RX Power to SNR}{RX Power to SNR (2/2)}
+\bi
 	\item Noise: $1.99^{-12}$ Watt = $-87 dBm$
 	\item Example:
 	\bi
@@ -279,17 +293,19 @@
 \end{slide}
 
 
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{slide}
-\slidetitle{Symbol Error Rate}{Symbol Error Rates}
+\slidetitle{Symbol/Bit Error Rate}{Symbol/Bit Error Rate (1/2)}
 \bi
 	\item Symbol Error Rate
-	\item common digital modulation schemes:
+	\item Common digital modulation schemes:
 	\bi
-		\item BPSK (2 Symbols)
-		\item QPSK (4 Symbols)
-		\item 8PSK (8 Symbols)
-		\item QAM (16, 32, 64 Symbols)
+		\item Binary phase-shift keying (BPSK, 2 Symbols)
+		\item Quadrature phase-shift keying (QPSK, 4 Symbols)
+		\item 8 Phase-shift keying (8PSK, 8 Symbols)
+		\item $n$-Quadrature amplitude modulation (QAM, 16, 32, 64 Symbols)
+		\item \dots
 	\ei
 \ei
 \end{slide}
@@ -297,17 +313,19 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{slide}
-\slidetitle{Bit Error Rate}{Bit Error Rate}
+\slidetitle{Symbol/Bit Error Rate}{Symbol/Bit Error Rate (2/2)}
 \begin{picture}(0,0)
-\put(100,-400){\includegraphics[scale=.7]{images/formel.png}}
-\end{picture}
-\begin{picture}(0,0)
-\put(0,-200){\includegraphics[scale=.7]{images/srr.png}}
+\put(-260,-480){\includegraphics[scale=.7]{images/srr.png}}
 \end{picture}
 \bi
 	\item Symbol Error Rate vs. Es/No
-	\item Symbol Error Rate $\rightarrow$ Bit Error Rate
-	\item $\frac{P_{S,MQAM}}{Bits/Symbol}$
+	\item \begin{math} P_{S,MQAM} = 2 ( 1 - \frac{1}{\sqrt{M}} )  erfc( \sqrt{ \frac{3}{2(M-1)} \frac{E_s} {E_0} }) - ( 1 -
+	\frac{2}{\sqrt{M}} + \frac{1}{M}) erfc^2 (\sqrt{\frac{3}{2-(M-1)} \frac{E_s}{E_0}}) \end{math}
+	\item Inverse Error Function (also known as Gauss error function):
+	\bi
+	\item \begin{math}erfc(x) = \frac{2}{\sqrt{\pi}} \int^\infty_x e^{-t^2}dt\end{math}
+	\ei
+	\item Symbol Error Rate $\rightarrow$ Bit Error Rate: $\frac{P_{S,MQAM}}{Bits per Symbol}$
 \ei
 \end{slide}
 
@@ -376,6 +394,25 @@
 		\item Parabolic dish
 		\item Grid antenna
 	\ei
+\ei
+\end{slide}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{slide}
+\slidetitle{Common dbM/Watt Values}{Common dbM/Watt Values\footnote{Source: WP}}
+\bi
+	\item 80 dBm	100 kW	Typical transmission power of FM radio station with 50 km range
+	\item 60 dBm	1 kW = 1000 W	Typical combined radiated RF power of microwave oven elements
+	\item 33 dBm	2 W		Maximum output from a UMTS/3G mobile phone (Power class 1 mobiles)
+	\item 30 dBm	1 W = 1000 mW	Typical RF leakage from a microwave oven
+	\item 20 dBm	100 mW	Bluetooth Class 1 radio, 100 m range
+	\item 15 dBm    32 mW	Typical WiFi transmission power in laptops
+	\item  4 dBm     2.5 mW	Bluetooth Class 2 radio, 10 m range
+	\item  0 dBm     1.0 mW = 1000 $mu$W	Bluetooth standard (Class 3) radio, 1 m range
+	\item -10 dBm   100 $mu$W	Typical maximum received signal power (-10 to -30 dBm) of wireless network
+	\item -70 dBm   100 pW	Typical range (-60 to -80 dBm) of wireless (802.11x) received signal power over a network
+	\item -127.5 dBm	0.178 fW = 178 aW	Typical received signal power from a GPS satellite
+	\item -174 dBm	0.004 aW = 4 zW		Thermal noise floor for 1 Hz bandwidth at room temperature (20 C)
 \ei
 \end{slide}
 
