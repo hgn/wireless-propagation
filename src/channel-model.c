@@ -69,12 +69,6 @@ enum algo {
 	THREE_LOG_DISTANCE
 };
 
-enum modulation {
-	MOD_QAM_4,
-	MOD_QAM_16,
-	MOD_QAM_64,
-};
-
 
 struct opts {
 	double start;
@@ -136,7 +130,7 @@ struct c_env {
 	gsl_rng *rng;
 	enum algo algo;
 	double (*func)(const struct opts *, struct c_env *, const double);
-	enum modulation modulation;
+	int modulation;
 	double (*modulation_ber_func)(const struct opts *, struct c_env *, const double, const double);
 };
 
@@ -150,6 +144,10 @@ static double calc_log_distance(const struct opts *, struct c_env *, const doubl
 static double calc_three_log_distance(const struct opts *, struct c_env *, const double);
 
 static double ber_qam4(const struct opts *, struct c_env *, const double, const double);
+static double ber_bpsk(const struct opts *, struct c_env *, const double, const double);
+static double ber_4pam(const struct opts *, struct c_env *, const double, const double);
+static double ber_qam16(const struct opts *, struct c_env *, const double, const double);
+static double ber_16psk(const struct opts *, struct c_env *, const double, const double);
 
 struct algorithms {
 	const char *name;
@@ -166,12 +164,27 @@ struct algorithms {
 	{ NULL, 0, 0 }
 };
 
+enum modulation {
+	MOD_QAM_4,
+	MOD_QAM_16,
+	MOD_QAM_64,
+	MOD_BPSK,
+	MOD_16PSK,
+	MOD_4PAM,
+	MOD_QPSK
+};
+
 struct modulations {
 	const char *name;
 	enum modulation modulation;
 	double (*func)(const struct opts *, struct c_env *, const double, const double);
 } modulations[] = {
-	{ "qam4", MOD_QAM_4, ber_qam4 },
+	{ "qam4",  MOD_QAM_4,  ber_qam4 },
+	{ "qpsk",  MOD_QPSK,   ber_qam4 }, /* qpsk is identical to 4qam */
+	{ "bpsk",  MOD_BPSK,   ber_bpsk },
+	{ "4pam",  MOD_4PAM,   ber_4pam },
+	{ "qam16", MOD_QAM_16, ber_qam16 },
+	{ "16psk", MOD_16PSK,  ber_16psk },
 	{ NULL, 0, 0 }
 };
 
@@ -822,7 +835,7 @@ calc_nakagami(const struct opts *opts, struct c_env *c_env, const double node_di
 }
 
 
-/* returns the Bit Error Rate for a given SNR */
+/* qam4 is identical to QPSK */
 static double ber_qam4(const struct opts *opts,
 		struct c_env *c_env, const double es, const double e0)
 {
@@ -838,6 +851,66 @@ static double ber_qam4(const struct opts *opts,
 }
 
 
+static double ber_qam16(const struct opts *opts,
+		struct c_env *c_env, const double es, const double e0)
+{
+	(void) opts;
+	(void) c_env;
+
+	double snr, snr_linear;
+
+	snr = es - e0;
+	snr_linear = pow(10.0, (snr / 10.0));
+
+	return (3.0 / 2) * gsl_sf_erfc(sqrt(snr_linear * 0.1));
+}
+
+
+
+static double ber_16psk(const struct opts *opts,
+		struct c_env *c_env, const double es, const double e0)
+{
+	(void) opts;
+	(void) c_env;
+
+	double snr, snr_linear;
+
+	snr = es - e0;
+	snr_linear = pow(10.0, (snr / 10.0));
+
+	return gsl_sf_erfc(sqrt(snr_linear) * sin(M_PI / 16.0));
+}
+
+static double ber_bpsk(const struct opts *opts,
+		struct c_env *c_env, const double es, const double e0)
+{
+	(void) opts;
+	(void) c_env;
+
+	double snr, snr_linear;
+
+	snr = es - e0;
+	snr_linear = pow(10.0, (snr / 10.0));
+
+	return 0.5 * gsl_sf_erfc(sqrt(snr_linear));
+}
+
+static double ber_4pam(const struct opts *opts,
+		struct c_env *c_env, const double es, const double e0)
+{
+	(void) opts;
+	(void) c_env;
+
+	double snr, snr_linear;
+
+	snr = es - e0;
+	snr_linear = pow(10.0, (snr / 10.0));
+
+	return (3.0/4) * gsl_sf_erfc(sqrt(snr_linear * 0.2));
+}
+
+
+
 static void calc_ber(struct opts *opts, struct c_env *c_env)
 {
 	double max, min, step, e0, es;
@@ -847,11 +920,10 @@ static void calc_ber(struct opts *opts, struct c_env *c_env)
 	step = 0.5;
 	e0 = -120;
 
-	for (es = max; es >= min; es -= step) {
-		fprintf(stdout, "%e %lf\n",
+	for (es = min; es <= max; es += step) {
+		fprintf(stdout, "%.20lf %.20lf\n",
 				c_env->modulation_ber_func(opts, c_env, es, e0),
 				es - e0);
-
 	}
 }
 
