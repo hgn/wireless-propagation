@@ -11,6 +11,7 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
+#include <gsl/gsl_sf_erf.h>
 
 #define	SEED_DEVICE "/dev/urandom"
 
@@ -69,7 +70,9 @@ enum algo {
 };
 
 enum modulation {
-	QAM4 = 1,
+	MOD_QAM_4,
+	MOD_QAM_16,
+	MOD_QAM_64,
 };
 
 
@@ -118,6 +121,10 @@ struct opts {
 		double reference_distance;
 	} three_log_distance;
 
+	/* if true the ber for a given modulation
+	 * scheme is calculated for a common snr
+	 * range */
+	int ber;
 };
 
 #define	OPTS_THREE_LOG(opts) opts->three_log_distance
@@ -130,7 +137,7 @@ struct c_env {
 	enum algo algo;
 	double (*func)(const struct opts *, struct c_env *, const double);
 	enum modulation modulation;
-	double (*modulation_ber_func)(const struct opts *, struct c_env *, const double);
+	double (*modulation_ber_func)(const struct opts *, struct c_env *, const double, const double);
 };
 
 /* al cheapo forward declarations */
@@ -142,7 +149,7 @@ static double calc_friis(const struct opts *, struct c_env *, const double);
 static double calc_log_distance(const struct opts *, struct c_env *, const double);
 static double calc_three_log_distance(const struct opts *, struct c_env *, const double);
 
-static double ber_qam4(const struct opts *, struct c_env *, const double);
+static double ber_qam4(const struct opts *, struct c_env *, const double, const double);
 
 struct algorithms {
 	const char *name;
@@ -162,9 +169,9 @@ struct algorithms {
 struct modulations {
 	const char *name;
 	enum modulation modulation;
-	double (*func)(const struct opts *, struct c_env *, const double);
+	double (*func)(const struct opts *, struct c_env *, const double, const double);
 } modulations[] = {
-	{ "qam4", QAM4, ber_qam4 },
+	{ "qam4", MOD_QAM_4, ber_qam4 },
 	{ NULL, 0, 0 }
 };
 
@@ -406,10 +413,13 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 
 			{"modulation", 1, 0, 'm'},
 
+			{"ber", 0, 0, 'b'},
+
+
 			{0, 0, 0, 0}
 		};
 
-		c = getopt_long(ac, av, "a:s:e:d:f:l:p:r:t:u:i:g:h:j:P:O:Q:W:E:R:T:Y:U:A:S:D:F:G:H:m:",
+		c = getopt_long(ac, av, "a:s:e:d:f:l:p:r:t:u:i:g:h:j:P:O:Q:W:E:R:T:Y:U:A:S:D:F:G:H:m:b",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -540,6 +550,10 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 			}
 			break;
 
+		case 'b':
+			opts->ber = 1;
+			break;
+
 		case '?':
 			break;
 
@@ -548,7 +562,7 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 		}
 	}
 
-	if (c_env->algo == 0) {
+	if (c_env->algo == 0 && opts->ber == 0) {
 		fprintf(stderr, "No algorithn given\n");
 		print_usage();
 		exit(EXIT_FAILURE);
@@ -565,17 +579,6 @@ parse_opts(int ac, char **av, struct c_env *c_env)
 		die(EXIT_FAILURE, "No valid delta given (must > 0)");
 
 	return opts;
-}
-
-/* returns the Bit Error Rate for a given SNR */
-static double
-ber_qam4(const struct opts *opts, struct c_env *c_env, const double snr)
-{
-	(void) opts;
-	(void) c_env;
-	(void) snr;
-
-	return 0.0;
 }
 
 
@@ -819,6 +822,39 @@ calc_nakagami(const struct opts *opts, struct c_env *c_env, const double node_di
 }
 
 
+/* returns the Bit Error Rate for a given SNR */
+static double ber_qam4(const struct opts *opts,
+		struct c_env *c_env, const double es, const double e0)
+{
+	(void) opts;
+	(void) c_env;
+
+	double snr, snr_linear;
+
+	snr = es - e0;
+	snr_linear = pow(10.0, (snr / 10.0));
+
+	return gsl_sf_erfc(sqrt(snr_linear * 0.5));
+}
+
+
+static void calc_ber(struct opts *opts, struct c_env *c_env)
+{
+	double max, min, step, e0, es;
+
+	max = -105.0;
+	min = -120.0;
+	step = 0.5;
+	e0 = -120;
+
+	for (es = max; es >= min; es -= step) {
+		fprintf(stdout, "%e %lf\n",
+				c_env->modulation_ber_func(opts, c_env, es, e0),
+				es - e0);
+
+	}
+}
+
 static struct c_env*
 init_env(void)
 {
@@ -880,6 +916,11 @@ main(int ac, char **av)
 	c_env = init_env();
 	opts = parse_opts(ac, av, c_env);
 
+	if (opts->ber) {
+		calc_ber(opts, c_env);
+		goto exit;
+	}
+
 	for (node_distance = opts->start;
 		 node_distance <= opts->end;
 		 node_distance += opts->delta) {
@@ -890,6 +931,7 @@ main(int ac, char **av)
 		fprintf(stdout, "%lf %lf\n", node_distance, rx_power_dbm);
 	}
 
+exit:
 	finit_env(c_env);
 	free(opts);
 

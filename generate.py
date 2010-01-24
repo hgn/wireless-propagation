@@ -706,6 +706,68 @@ def three_log_distance():
     p = Popen("mv " + algorithm + ".pdf latex/images", shell=True)
     sts = os.waitpid(p.pid, 0)
 
+##########################################
+##########################################
+##########################################
+def ber():
+
+    algorithm = "qam4"
+    name        = "ber" 
+    gnuplotname = name + ".gpi"
+    datafile1  = tempfile.NamedTemporaryFile()
+    pdfname    = name + ".pdf"
+
+    gpi_src = """
+    set term postscript eps enhanced color "Times" 25
+    set output "%s.eps"
+
+    set size 2
+
+    set key spacing 1.2
+    set grid xtics ytics mytics
+
+    set title "BER"
+    set xlabel "Node Distance [meter]"
+    set ylabel "RX Power [dbm]"
+
+    #set yrange[-100:0]
+    #set xrange[0:200]
+
+    set style line 1 linetype 1 linecolor rgb "#3e6694" lw 3
+    set style line 2 linetype 1 linecolor rgb "#ff0000" lw 3
+    set style line 3 linetype 1 linecolor rgb "#00ff00" lw 3
+    set style line 4 linetype 1 linecolor rgb "#00ffff" lw 3
+    set style line 5 linetype 1 linecolor rgb "#0000ff" lw 3
+
+    plot "%s" using 1:2 title "m0 = 0.25" with lines ls 1
+    !epstopdf --outfile=%s.pdf %s.eps
+    !rm -rf %s.eps
+    """ %(name, datafile1.name, name, name, name)
+
+    # first of all open gnuplot template file
+    f = open(gnuplotname, 'w')
+    f.write(gpi_src)
+    f.close()
+
+    # open  data file
+    fdat = datafile1
+
+    output = Popen([p_path, "--modulation", algorithm, "-b"],
+        stdout=PIPE).communicate()[0]
+    fdat.write("%s\n" % (output))
+    fdat.flush()
+
+
+    # execute gnuplot
+    p = Popen("gnuplot" + " " + gnuplotname, shell=True)
+    sts = os.waitpid(p.pid, 0)
+
+    # move image in tex directory
+    p = Popen("mv " + pdfname + " latex/images", shell=True)
+    sts = os.waitpid(p.pid, 0)
+
+    fdat.close()
+
 
 
 ##########################################
@@ -728,3 +790,4 @@ nakagami_m0_distribution(1.0)
 nakagami_m0_distribution(1.5)
 nakagami_m0_distribution(2.0)
 nakagami_m0_distribution(5.0)
+ber()
