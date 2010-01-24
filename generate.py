@@ -711,38 +711,58 @@ def three_log_distance():
 ##########################################
 def ber():
 
-    algorithm = "qam4"
     name        = "ber" 
-    gnuplotname = name + ".gpi"
-    datafile1  = tempfile.NamedTemporaryFile()
     pdfname    = name + ".pdf"
+    gnuplotname = name + ".gpi"
+
+    algorithm1 = "bpsk"
+    datafile1  = tempfile.NamedTemporaryFile()
+    algorithm2 = "qam4"
+    datafile2  = tempfile.NamedTemporaryFile()
+    algorithm3 = "4pam"
+    datafile3  = tempfile.NamedTemporaryFile()
+    algorithm4 = "qam16"
+    datafile4  = tempfile.NamedTemporaryFile()
+    algorithm5 = "16psk"
+    datafile5  = tempfile.NamedTemporaryFile()
+
 
     gpi_src = """
-    set term postscript eps enhanced color "Times" 25
+    set term postscript eps enhanced color "Times" 30
     set output "%s.eps"
+
+    set key left bottom
 
     set size 2
 
     set key spacing 1.2
-    set grid xtics ytics mytics
+    set grid 
 
-    set title "BER"
-    set xlabel "Node Distance [meter]"
-    set ylabel "RX Power [dbm]"
+    set title "Symbol error probability curve for various modulation schemes"
+    set xlabel "Es/No [dB]"
+    set ylabel "Symbol Error Rate [%%]"
+
+    set log y
 
     #set yrange[-100:0]
     #set xrange[0:200]
 
-    set style line 1 linetype 1 linecolor rgb "#3e6694" lw 3
-    set style line 2 linetype 1 linecolor rgb "#ff0000" lw 3
-    set style line 3 linetype 1 linecolor rgb "#00ff00" lw 3
-    set style line 4 linetype 1 linecolor rgb "#00ffff" lw 3
-    set style line 5 linetype 1 linecolor rgb "#0000ff" lw 3
+    set style line 1 linetype 1 linecolor rgb "#3e6694" lw 5
+    set style line 2 linetype 1 linecolor rgb "#ff0000" lw 5
+    set style line 3 linetype 1 linecolor rgb "#00ff00" lw 5
+    set style line 4 linetype 1 linecolor rgb "#00ffff" lw 5
+    set style line 5 linetype 1 linecolor rgb "#0000ff" lw 5
 
-    plot "%s" using 1:2 title "m0 = 0.25" with lines ls 1
+    plot "%s" using 2:1 title "BPSK"  with linespoints ls 1, \
+         "%s" using 2:1 title "QAM4"  with linespoints ls 2, \
+         "%s" using 2:1 title "4PAM"  with linespoints ls 3, \
+         "%s" using 2:1 title "QAM16" with linespoints ls 4, \
+         "%s" using 2:1 title "16PSK" with linespoints ls 5
     !epstopdf --outfile=%s.pdf %s.eps
     !rm -rf %s.eps
-    """ %(name, datafile1.name, name, name, name)
+    """ %(name, datafile1.name, datafile2.name, datafile3.name,
+            datafile4.name, datafile5.name,
+            name, name, name)
 
     # first of all open gnuplot template file
     f = open(gnuplotname, 'w')
@@ -751,12 +771,40 @@ def ber():
 
     # open  data file
     fdat = datafile1
-
-    output = Popen([p_path, "--modulation", algorithm, "-b"],
+    alg  = algorithm1
+    output = Popen([p_path, "--modulation", alg, "-b"],
         stdout=PIPE).communicate()[0]
     fdat.write("%s\n" % (output))
     fdat.flush()
 
+    # open  data file
+    fdat = datafile2
+    alg  = algorithm2
+    output = Popen([p_path, "--modulation", alg, "-b"],
+        stdout=PIPE).communicate()[0]
+    fdat.write("%s\n" % (output))
+    fdat.flush()
+
+    fdat = datafile3
+    alg  = algorithm3
+    output = Popen([p_path, "--modulation", alg, "-b"],
+        stdout=PIPE).communicate()[0]
+    fdat.write("%s\n" % (output))
+    fdat.flush()
+
+    fdat = datafile4
+    alg  = algorithm4
+    output = Popen([p_path, "--modulation", alg, "-b"],
+        stdout=PIPE).communicate()[0]
+    fdat.write("%s\n" % (output))
+    fdat.flush()
+
+    fdat = datafile5
+    alg  = algorithm5
+    output = Popen([p_path, "--modulation", alg, "-b"],
+        stdout=PIPE).communicate()[0]
+    fdat.write("%s\n" % (output))
+    fdat.flush()
 
     # execute gnuplot
     p = Popen("gnuplot" + " " + gnuplotname, shell=True)
@@ -766,7 +814,11 @@ def ber():
     p = Popen("mv " + pdfname + " latex/images", shell=True)
     sts = os.waitpid(p.pid, 0)
 
-    fdat.close()
+    datafile1.close()
+    datafile2.close()
+    datafile3.close()
+    datafile4.close()
+    datafile5.close()
 
 
 

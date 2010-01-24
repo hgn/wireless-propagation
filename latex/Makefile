@@ -18,6 +18,9 @@ ps:  $(OBJ_PS)
 dvi: $(OBJ_DVI)
 handout: $(HANDOUT_PDF)
 
+IMAGES: images/two-ray-ground.svg
+	inkscape --without-gui --export-text-to-path --export-pdf=images/two-ray-ground.pdf images/two-ray-ground.svg
+
 $(OBJ_DVI): $(OBJ_SRC) 
 	latex $(OBJ_SRC)
 	bibtex $(OBJ_AUX) || true
@@ -27,7 +30,7 @@ $(OBJ_DVI): $(OBJ_SRC)
 $(OBJ_PS): $(OBJ_DVI)
 	dvips -o${OBJ_PS} $(OBJ_DVI)
 
-$(OBJ_PDF): $(OBJ_SRC)
+$(OBJ_PDF): $(OBJ_SRC) IMAGES
 	pdflatex $(OBJ_SRC)
 	bibtex $(OBJ_AUX) || true
 	pdflatex $(OBJ_SRC)
